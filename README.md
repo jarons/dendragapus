@@ -1,6 +1,6 @@
 Dendragapus
 =====
 
-"Fork Dendragapus" to create a new MOOSE-based application.
+This repository is for creating and testing new features for the MOOSE framework. New Transfers, MultiApps, and PostProcessors are being developed to enable modifications to Picard Iteration. 
 
-For more information see: [http://mooseframework.org/create-an-app/](http://mooseframework.org/create-an-app/)
+For more information, email me.  
