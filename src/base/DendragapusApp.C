@@ -3,6 +3,21 @@
 #include "AppFactory.h"
 #include "ModulesApp.h"
 
+//important new things
+#include "ResidualBalanceTransient.h"
+#include "MethodATransient.h"
+#include "ResidualBalanceMultiApp.h"
+#include "TransientMultiAppF.h"
+#include "InitialResidual.h"
+
+//stuff to make the example problem work
+#include "RadiationBC.h"
+#include "gradRobinBC.h"
+#include "cDiffusion.h"
+#include "ConstConv.h"
+#include "cSideFluxAverage.h"
+#include "cLayeredSideFluxAverage.h"
+
 template<>
 InputParameters validParams<DendragapusApp>()
 {
@@ -43,7 +58,20 @@ DendragapusApp::registerApps()
 extern "C" void DendragapusApp__registerObjects(Factory & factory) { DendragapusApp::registerObjects(factory); }
 void
 DendragapusApp::registerObjects(Factory & factory)
-{
+{ 
+  registerMultiApp(TransientMultiAppF);
+  registerMultiApp(ResidualBalanceMultiApp);
+  registerPostprocessor(InitialResidual);
+  registerExecutioner(ResidualBalanceTransient);
+  registerExecutioner(MethodATransient);
+
+  registerKernel(cDiffusion);
+  registerKernel(ConstConv);
+  registerBoundaryCondition(RadiationBC);
+  registerBoundaryCondition(gradRobinBC);
+  registerPostprocessor(cSideFluxAverage);
+  registerUserObject(cLayeredSideFluxAverage);  
+
 }
 
 // External entry point for dynamic syntax association
