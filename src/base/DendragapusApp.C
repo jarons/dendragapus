@@ -6,9 +6,9 @@
 //important new things
 #include "ResidualBalanceTransient.h"
 #include "MethodATransient.h"
-#include "ResidualBalanceMultiApp.h"
-#include "TransientMultiAppF.h"
+//#include "ResidualBalanceMultiApp.h" //not using this one
 #include "InitialResidual.h"
+#include "InterruptibleTransientMultiApp.h"
 
 //stuff to make the example problem work
 #include "RadiationBC.h"
@@ -59,8 +59,8 @@ extern "C" void DendragapusApp__registerObjects(Factory & factory) { Dendragapus
 void
 DendragapusApp::registerObjects(Factory & factory)
 { 
-  registerMultiApp(TransientMultiAppF);
-  registerMultiApp(ResidualBalanceMultiApp);
+  registerMultiApp(InterruptibleTransientMultiApp);
+  //registerMultiApp(ResidualBalanceMultiApp);
   registerPostprocessor(InitialResidual);
   registerExecutioner(ResidualBalanceTransient);
   registerExecutioner(MethodATransient);
