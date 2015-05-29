@@ -26,7 +26,7 @@ InputParameters validParams<InitialResidual>()
 
 InitialResidual::InitialResidual(const std::string & name, InputParameters parameters) :
     GeneralPostprocessor(name, parameters),
-  _root_id(0), // for MPI
+  _root_id(0),
   _value(0)
 {}
 
@@ -39,8 +39,7 @@ InitialResidual::execute()
 Real
 InitialResidual::getValue()
 {
-
-//return _fe_problem.getNonlinearSystem()._initial_residual;  
+  //return _fe_problem.getNonlinearSystem()._initial_residual;  
   return _value;
 
 }
@@ -50,22 +49,6 @@ InitialResidual::finalize()
 {
  // Gather a consist id for broadcasting the computed value
  gatherMin(_root_id);
-
-// I think this block is not needed. Taken from PointValuePP
-/*
- // Compute the value at the point
- if (_root_id == processor_id())
- {
- const Elem * elem = _mesh.elem(_elem_id);
- std::set<MooseVariable *> var_list;
- var_list.insert(&_var);
-
- _fe_problem.setActiveElementalMooseVariables(var_list, _tid);
- _subproblem.reinitElemPhys(elem, _point_vec, 0);
- mooseAssert(_u.size() == 1, "No values in u!");
- _value = _u[0];
- }
-*/
 
  // Make sure all processors have the correct computed values
  _communicator.broadcast(_value, _root_id);

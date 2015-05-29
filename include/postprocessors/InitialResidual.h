@@ -36,7 +36,7 @@ public:
    */
   virtual Real getValue();
   
-  virtual void finalize(); //hopefully this enables MPI
+  virtual void finalize();
 
 protected:
   processor_id_type _root_id;
