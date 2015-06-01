@@ -8,6 +8,8 @@
 # FRAMEWORK_DIR    - Location of the MOOSE framework
 #
 ###############################################################################
+SHELL := /bin/bash
+#
 MOOSE_DIR          ?= $(shell dirname `pwd`)/../moose
 FRAMEWORK_DIR      ?= $(MOOSE_DIR)/framework
 ###############################################################################
