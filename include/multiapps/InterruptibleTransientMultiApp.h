@@ -19,7 +19,7 @@
 #include "Transient.h"
 #include "TransientInterface.h"
 
-#include "MethodATransient.h"
+#include "InterruptibleTransient.h"
 //#include "TransientMultiApp.h"
 
 class InterruptibleTransientMultiApp;
@@ -93,7 +93,7 @@ private:
    */
   void setupApp(unsigned int i, Real time = 0.0);
 
-   std::vector<MethodATransient *> _transient_executioners;
+   std::vector<InterruptibleTransient *> _transient_executioners;
   //std::vector<ResidualBalanceTransient *> _transient_executioners;
 
   bool _sub_cycling;

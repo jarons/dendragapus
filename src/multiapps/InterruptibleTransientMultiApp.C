@@ -25,7 +25,7 @@
 //#include "TransientMultiApp.h"
 #include "MultiApp.h"
 #include "InterruptibleTransientMultiApp.h"
-#include "MethodATransient.h"
+#include "InterruptibleTransient.h"
 // #include "ResidualBalanceTransient.h"
 
 template<>
@@ -58,7 +58,7 @@ InputParameters validParams<InterruptibleTransientMultiApp>()
 
 
 InterruptibleTransientMultiApp::InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters):
-    MultiApp(name, parameters),// should inherit from TransientMultiApp, but I run into problems: _first must be initialized, but it doesn't recognize that the parent takes care of that. Also some problem with the line: MethodATransient * ex = _transient_executioners[i];
+    MultiApp(name, parameters),// should inherit from TransientMultiApp, but I run into problems: _first must be initialized, but it doesn't recognize that the parent takes care of that. Also some problem with the line: InterruptibleTransient * ex = _transient_executioners[i];
     _sub_cycling(getParam<bool>("sub_cycling")),
     _interpolate_transfers(getParam<bool>("interpolate_transfers")),
     _detect_steady_state(getParam<bool>("detect_steady_state")),
@@ -90,7 +90,7 @@ InterruptibleTransientMultiApp::~InterruptibleTransientMultiApp()
   for (unsigned int i = 0; i < _my_num_apps; i++)
   {
     // this will be renamed:
-    MethodATransient * ex = _transient_executioners[i];
+    InterruptibleTransient * ex = _transient_executioners[i];
 
     ex->postExecute();
   }
@@ -163,7 +163,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
     FEProblem * problem = appProblem(_first_local_app + i);
 //_console << "Not dead yet, 1" << std::endl;
-    MethodATransient * ex = _transient_executioners[i];
+    InterruptibleTransient * ex = _transient_executioners[i];
     // ResidualBalanceTransient * ex = _transient_executioners[i];
 //_console << "Not dead yet, 1.5" << std::endl;
     // The App might have a different local time from the rest of the problem
@@ -414,7 +414,7 @@ InterruptibleTransientMultiApp::advanceStep()
     {
       /*FEProblem * problem =*/ appProblem(_first_local_app + i);
       // Transient * ex = _transient_executioners[i];
-      MethodATransient * ex = _transient_executioners[i];
+      InterruptibleTransient * ex = _transient_executioners[i];
       // ResidualBalanceTransient * ex = _transient_executioners[i]; 
 
       ex->endStep();
@@ -451,7 +451,7 @@ InterruptibleTransientMultiApp::computeDT()
 
     for (unsigned int i=0; i<_my_num_apps; i++)
     {
-      MethodATransient * ex = _transient_executioners[i];
+      InterruptibleTransient * ex = _transient_executioners[i];
       //Is this line the only reason we don't just inherit this function?
 
       ex->computeDT();
@@ -505,7 +505,7 @@ InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXM
   MooseApp * app = _apps[i];
   // Is it really this annoying? Is there a better way?
   // do children also count as the correct class?
-  MethodATransient * ex = dynamic_cast<MethodATransient *>(app->getExecutioner());
+  InterruptibleTransient * ex = dynamic_cast<InterruptibleTransient *>(app->getExecutioner());
   // if (!ex)
   //ResidualBalanceTransient * ex = dynamic_cast<ResidualBalanceTransient *>(app->getExecutioner());
   if (!ex)

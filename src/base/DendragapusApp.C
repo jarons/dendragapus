@@ -5,7 +5,7 @@
 
 //important new things
 #include "ResidualBalanceTransient.h"
-#include "MethodATransient.h"
+#include "InterruptibleTransient.h"
 //#include "ResidualBalanceMultiApp.h" //not using this one
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
@@ -63,7 +63,7 @@ DendragapusApp::registerObjects(Factory & factory)
   //registerMultiApp(ResidualBalanceMultiApp);
   registerPostprocessor(InitialResidual);
   registerExecutioner(ResidualBalanceTransient);
-  registerExecutioner(MethodATransient);
+  registerExecutioner(InterruptibleTransient);
 
   registerKernel(cDiffusion);
   registerKernel(ConstConv);
