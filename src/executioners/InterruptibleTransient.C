@@ -395,8 +395,8 @@ InterruptibleTransient::re_solveStep(Real input_dt)
   {
     _console << COLOR_GREEN << " Solve Converged!" << COLOR_DEFAULT << std::endl;
 
-    if (_picard_max_its <= 1 ) // && !multiapp.is_re_solved() )
-    { _console << "it happened now: _time_stepper->acceptStep()" << std::endl;
+    if (_picard_max_its <= 1 ) 
+    { 
       _time_stepper->acceptStep();
     }
 

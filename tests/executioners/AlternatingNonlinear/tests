@@ -1,0 +1,7 @@
+[Tests]
+  [./test]
+    type = 'Exodiff'
+    input = 'AN_left.i'
+    exodiff = 'AN_left_out.e AN_left_out_GetRight0.e'
+  [../]
+[]
