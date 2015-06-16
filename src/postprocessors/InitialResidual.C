@@ -33,7 +33,8 @@ InitialResidual::InitialResidual(const std::string & name, InputParameters param
 void 
 InitialResidual::execute()
 {
-  _value=_fe_problem.getNonlinearSystem()._initial_residual;
+  //_value=_fe_problem.getNonlinearSystem()._initial_residual;
+  _value=_fe_problem.getNonlinearSystem()._initial_residual_before_preset_bcs;
 }
 
 Real
