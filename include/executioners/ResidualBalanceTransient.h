@@ -71,6 +71,8 @@ protected:
   Real _new_tol_mult;
   
   PostprocessorValue _new_tol; 
+  
+  Real _min_abs_tol;
 
 private:
   Real current_norm; 

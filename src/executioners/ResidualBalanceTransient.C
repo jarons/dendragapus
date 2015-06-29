@@ -42,13 +42,15 @@ InputParameters validParams<ResidualBalanceTransient>()
   InputParameters params = validParams<Transient>(); 
   params.addParam<Real>("tol_mult",1,"(Other residual)*this=(new abs_tol)"); 
   params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the postprocessor you are trying to get.");
+  params.addParam<Real>("Min_Abs_Tol",1e-50,"Set this to the same as nl_abs_tol"); //TODO: do this for the user
   return params;
 }
 
 ResidualBalanceTransient::ResidualBalanceTransient(const std::string & name, InputParameters parameters) :
     Transient(name, parameters), 
     _new_tol_mult(getParam<Real>("tol_mult")),
-    _new_tol(getPostprocessorValue("InitialResidual"))  
+    _new_tol(getPostprocessorValue("InitialResidual")),
+    _min_abs_tol(getParam<Real>("Min_Abs_Tol"))  
 {
   _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
@@ -144,20 +146,28 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   his_initial_norm = getPostprocessorValue("InitialResidual");
   if (_picard_max_its > 1)
   {
-    current_norm = my_current_norm + his_initial_norm;
+    //000// these changes ensure just one step a timestep_begin
+    //current_norm = my_current_norm + his_initial_norm;
+
     // this is imprecise: it will be (other_initial_norm + current_norm) instead of 
     //   (other_current_norm + current_norm). But that shouldn't be too bad, because it's only
     //   taken one step since then. To improve, get access to the ending residual also (another PP).
 
     if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
     {
+      current_norm = my_current_norm;  //000//
+      his_initial_norm = 0;            //000//
+      //mooseAssert(EXEC_TIMESTEP_BEGIN,"Residual Balance requires multi-app to execute on timestep_end");  //000// this only works if multiapp is on timestep_end
       _picard_initial_norm = current_norm;
       _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (his_initial_norm == 0)
         _adjust_initial_norm = true;
     }
     else
+    {
+      current_norm = my_current_norm + his_initial_norm;  //000//
       _console << "Current Picard Norm: " << current_norm << '\n';
+    }
 
     if (_picard_it == 1 && _adjust_initial_norm == true)
     {
@@ -179,10 +189,16 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   
   // For multiple sub-apps you'll need an aggregate PP to collect residuals in
   //    or some way to keep the number of PPs low.
+
   if (his_initial_norm ==0)
-  { his_initial_norm = my_current_norm; } // this statement is nearly meaningless, just ensure it won't revert us back to Method A
+  { his_initial_norm = my_current_norm; } // this statement is nearly meaningless,
+  // just ensure it won't revert us back to Solution Interruption.
+  // In other words, assume the other residual is comparable
+
   _new_tol = std::min(his_initial_norm*_new_tol_mult, 0.95*my_current_norm);
   // you may want 0.95 to be a parameter for the user to (not) change
+  if (_new_tol < _min_abs_tol)
+  { _new_tol = _min_abs_tol;}
   _console << "New Abs_Tol = " << _new_tol << std::endl;
   _problem.es().parameters.set<Real> ("nonlinear solver absolute residual tolerance") = _new_tol;
 
