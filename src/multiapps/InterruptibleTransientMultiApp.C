@@ -57,8 +57,10 @@ InputParameters validParams<InterruptibleTransientMultiApp>()
 }
 
 
-InterruptibleTransientMultiApp::InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters):
-    MultiApp(name, parameters),// should inherit from TransientMultiApp, but I run into problems: _first must be initialized, but it doesn't recognize that the parent takes care of that. Also some problem with the line: InterruptibleTransient * ex = _transient_executioners[i];
+//InterruptibleTransientMultiApp::InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters): //old syntax
+InterruptibleTransientMultiApp::InterruptibleTransientMultiApp(const InputParameters & parameters):
+    MultiApp(parameters),
+  //  MultiApp(name, parameters),// should inherit from TransientMultiApp, but I run into problems: _first must be initialized, but it doesn't recognize that the parent takes care of that. Also some problem with the line: InterruptibleTransient * ex = _transient_executioners[i];
     _sub_cycling(getParam<bool>("sub_cycling")),
     _interpolate_transfers(getParam<bool>("interpolate_transfers")),
     _detect_steady_state(getParam<bool>("detect_steady_state")),
@@ -133,7 +135,7 @@ InterruptibleTransientMultiApp::initialSetup()
   Moose::swapLibMeshComm(swapped);
 }
 
-void
+bool //void
 InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_advance)
 {
   if (_sub_cycling && !auto_advance)
@@ -143,7 +145,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
     mooseError("TransientMultiApp with catch_up=true is not compatible with auto_advance=false");
 
   if (!_has_an_app)
-    return;
+    return true;
 
   _auto_advance = auto_advance;
 
@@ -279,7 +281,10 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
           _failures++;
 
           if (_failures > _max_failures)
-            mooseError("While sub_cycling "<<_name<<_first_local_app+i<<" REALLY failed!"<<std::endl);
+          {  
+            mooseWarning("While sub_cycling " << name() << _first_local_app+i << " REALLY failed!" << std::endl);
+            return false;
+          }
         }
 
         Real solution_change_norm = ex->getSolutionChangeNorm();
@@ -381,7 +386,10 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
             }
 
             if (!caught_up)
-              mooseError(_name << " Failed to catch up!\n");
+            {
+              mooseWarning(name() << " Failed to catch up!\n");
+              return false;
+            }
 
           }
         }
@@ -403,6 +411,8 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
   _transferred_vars.clear();
 
   _console << "Finished Solving MultiApp " << _name << std::endl;
+
+  return true;
 }
 
 void

@@ -48,7 +48,7 @@ public:
    * @param parameters The parameters object holding data for the class to use.
    * @return Whether or not the solve was successful.
    */
-  ResidualBalanceTransient(const std::string & name, InputParameters parameters);
+  ResidualBalanceTransient(const InputParameters & parameters);
   virtual ~ResidualBalanceTransient();
 
   virtual void endStep(Real input_time = -1.0);

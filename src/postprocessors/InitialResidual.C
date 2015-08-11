@@ -24,8 +24,8 @@ InputParameters validParams<InitialResidual>()
   return params;
 }
 
-InitialResidual::InitialResidual(const std::string & name, InputParameters parameters) :
-    GeneralPostprocessor(name, parameters),
+InitialResidual::InitialResidual(const InputParameters & parameters) :
+    GeneralPostprocessor(parameters),
   _root_id(0),
   _value(0)
 {}

@@ -46,13 +46,13 @@ InputParameters validParams<ResidualBalanceTransient>()
   return params;
 }
 
-ResidualBalanceTransient::ResidualBalanceTransient(const std::string & name, InputParameters parameters) :
-    Transient(name, parameters), 
+ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & parameters) :
+    Transient(parameters), 
     _new_tol_mult(getParam<Real>("tol_mult")),
     _new_tol(getPostprocessorValue("InitialResidual")),
     _min_abs_tol(getParam<Real>("Min_Abs_Tol"))  
 {
-  _problem.getNonlinearSystem().setDecomposition(_splitting);
+ /* _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
   _dt = 0;
   _next_interval_output_time = 0.0;
@@ -95,7 +95,7 @@ ResidualBalanceTransient::ResidualBalanceTransient(const std::string & name, Inp
 
     if (_num_steps == 0) // Always do one step in the first half
       _num_steps = 1;
-  }
+  } */
 }
 
 ResidualBalanceTransient::~ResidualBalanceTransient()
@@ -183,6 +183,8 @@ ResidualBalanceTransient::solveStep(Real input_dt)
 
       _picard_converged = true;
       _time_stepper->acceptStep();
+      // Accumulator Postprocessor goes now, at the actual timestep_end
+      _problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
       return;
     }
   }

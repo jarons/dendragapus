@@ -48,7 +48,7 @@ public:
    * @param parameters The parameters object holding data for the class to use.
    * @return Whether or not the solve was successful.
    */
-  InterruptibleTransient(const std::string & name, InputParameters parameters);
+  InterruptibleTransient(const InputParameters & parameters);
   virtual ~InterruptibleTransient();
 
   /**

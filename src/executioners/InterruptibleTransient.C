@@ -42,9 +42,9 @@ InputParameters validParams<InterruptibleTransient>()
   return params;
 }
 
-InterruptibleTransient::InterruptibleTransient(const std::string & name, InputParameters parameters) :
-    Transient(name, parameters) 
-{
+InterruptibleTransient::InterruptibleTransient(const InputParameters & parameters) :
+    Transient( parameters) 
+{ /*
   _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
   _dt = 0;
@@ -88,7 +88,7 @@ InterruptibleTransient::InterruptibleTransient(const std::string & name, InputPa
 
     if (_num_steps == 0) // Always do one step in the first half
       _num_steps = 1;
-  }
+  } */
 }
 
 InterruptibleTransient::~InterruptibleTransient()

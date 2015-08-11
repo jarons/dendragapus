@@ -26,7 +26,7 @@ InputParameters validParams<InitialResidual>();
 class InitialResidual : public GeneralPostprocessor
 {
 public:
-  InitialResidual(const std::string & name, InputParameters parameters);
+  InitialResidual(const InputParameters & parameters);
 
   virtual void initialize() {}
   virtual void execute(); 

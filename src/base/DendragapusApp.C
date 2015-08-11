@@ -1,7 +1,8 @@
 #include "DendragapusApp.h"
 #include "Moose.h"
 #include "AppFactory.h"
-#include "ModulesApp.h"
+// #include "ModulesApp.h" Also see Makefile for including modules
+//   Allows ModulesApp (two locations in this file)
 
 //important new things
 #include "ResidualBalanceTransient.h"
@@ -28,17 +29,17 @@ InputParameters validParams<DendragapusApp>()
   return params;
 }
 
-DendragapusApp::DendragapusApp(const std::string & name, InputParameters parameters) :
-    MooseApp(name, parameters)
+DendragapusApp::DendragapusApp(const InputParameters & parameters) :
+    MooseApp(parameters)
 {
   srand(processor_id());
 
   Moose::registerObjects(_factory);
-  ModulesApp::registerObjects(_factory);
+  // ModulesApp::registerObjects(_factory);
   DendragapusApp::registerObjects(_factory);
 
   Moose::associateSyntax(_syntax, _action_factory);
-  ModulesApp::associateSyntax(_syntax, _action_factory);
+  // ModulesApp::associateSyntax(_syntax, _action_factory);
   DendragapusApp::associateSyntax(_syntax, _action_factory);
 }
 
@@ -51,7 +52,11 @@ extern "C" void DendragapusApp__registerApps() { DendragapusApp::registerApps();
 void
 DendragapusApp::registerApps()
 {
+#undef  registerApp
+#define registerApp(name) AppFactory::instance().reg<name>(#name)
   registerApp(DendragapusApp);
+#undef  registerApp
+#define registerApp(name) AppFactory::instance().regLegacy<name>(#name)
 }
 
 // External entry point for dynamic object registration
@@ -59,6 +64,9 @@ extern "C" void DendragapusApp__registerObjects(Factory & factory) { Dendragapus
 void
 DendragapusApp::registerObjects(Factory & factory)
 { 
+#undef registerObject
+#define registerObject(name) factory.reg<name>(stringifyName(name))
+
   registerMultiApp(InterruptibleTransientMultiApp);
   //registerMultiApp(ResidualBalanceMultiApp);
   registerPostprocessor(InitialResidual);
@@ -72,6 +80,9 @@ DendragapusApp::registerObjects(Factory & factory)
   registerPostprocessor(cSideFluxAverage);
   registerUserObject(cLayeredSideFluxAverage);  
 
+#undef registerObject
+#define registerObject(name) factory.regLegacy<name>(stringifyName(name))
+
 }
 
 // External entry point for dynamic syntax association
@@ -79,4 +90,10 @@ extern "C" void DendragapusApp__associateSyntax(Syntax & syntax, ActionFactory &
 void
 DendragapusApp::associateSyntax(Syntax & syntax, ActionFactory & action_factory)
 {
+// #undef registerAction
+// #define registerAction(tplt, action) action_factory.reg<tplt>(stringifyName(tplt), action)
+  //nothing here yet
+// #undef registerAction
+// #define registerAction(tplt, action) action_factory.regLegacy<tplt>(stringifyName(tplt), action)
+
 }

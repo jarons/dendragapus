@@ -36,7 +36,8 @@ class InterruptibleTransientMultiApp :
   public MultiApp //should inherit from TransientMultiApp
 {
 public:
-  InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters);
+  //InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters); //old constructor
+  InterruptibleTransientMultiApp(const InputParameters & parameters);
 
   virtual ~InterruptibleTransientMultiApp();
 
@@ -56,7 +57,8 @@ public:
   /**
    * Advance all of the apps one timestep.
    */
-  void solveStep(Real dt, Real target_time, bool auto_advance=true);
+  //  void solveStep(Real dt, Real target_time, bool auto_advance=true); //old syntax
+  bool solveStep(Real dt, Real target_time, bool auto_advance=true);
 
   /**
    * Actually advances time and causes output.

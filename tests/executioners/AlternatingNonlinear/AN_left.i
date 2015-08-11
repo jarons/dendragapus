@@ -63,12 +63,12 @@
   solve_type = PJFNK
   petsc_options_iname = '-pc_type -pc_hypre_type'
   petsc_options_value = 'hypre boomeramg'
-  dtmin = 2e-20
-  picard_max_its = 100
+  # picard_max_its = 100
   picard_abs_tol = 1e-10
-  nl_abs_tol = 1e-20
-  nl_rel_step_tol = 1e-20
-  nl_abs_step_tol = 1e-20
+  nl_abs_tol = 1e-12
+  nl_rel_tol = 1e-8
+  # nl_rel_step_tol = 1e-20
+  # nl_abs_step_tol = 1e-20
   line_search = basic
 []
 
