@@ -36,7 +36,7 @@ class InterruptibleTransientMultiApp :
   public MultiApp //should inherit from TransientMultiApp
 {
 public:
-  //InterruptibleTransientMultiApp(const std::string & name, InputParameters parameters); //old constructor
+  //InterruptibleTransientMultiApp(const InputParameters & parameters); //old constructor
   InterruptibleTransientMultiApp(const InputParameters & parameters);
 
   virtual ~InterruptibleTransientMultiApp();

@@ -11,7 +11,7 @@ InputParameters validParams<DendragapusApp>();
 class DendragapusApp : public MooseApp
 {
 public:
-  DendragapusApp(const InputParameters & parameters);
+  DendragapusApp(InputParameters parameters);
   virtual ~DendragapusApp();
 
   static void registerApps();
