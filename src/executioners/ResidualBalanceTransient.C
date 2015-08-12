@@ -40,9 +40,12 @@ template<>
 InputParameters validParams<ResidualBalanceTransient>()
 {
   InputParameters params = validParams<Transient>(); 
-  params.addParam<Real>("tol_mult",1,"(Other residual)*this=(new abs_tol)"); 
-  params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the postprocessor you are trying to get.");
-  params.addParam<Real>("Min_Abs_Tol",1e-50,"Set this to the same as nl_abs_tol"); //TODO: do this for the user
+  params.addParam<Real>("tol_mult",1,"(Other residual)*this=(new_abs_tol)"); 
+  params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the InitialResidual postprocessor you are trying to get.");
+  params.addParam<PostprocessorName>("FinalResidual",0.0, "The name of the Residual postprocessor you are trying to get.");
+  params.addParam<Real>("nl_abs_tol",1e-50,"Set this to the same as nl_abs_tol"); //this overrides other nl_abs_tol
+  
+  params.addParamNamesToGroup("nl_abs_tol", "Solver"); // put it back into the Solver tab
   return params;
 }
 
@@ -50,9 +53,10 @@ ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & param
     Transient(parameters), 
     _new_tol_mult(getParam<Real>("tol_mult")),
     _new_tol(getPostprocessorValue("InitialResidual")),
-    _min_abs_tol(getParam<Real>("Min_Abs_Tol"))  
-{
- /* _problem.getNonlinearSystem().setDecomposition(_splitting);
+    his_final_norm(getPostprocessorValue("FinalResidual")),
+    _min_abs_tol(getParam<Real>("nl_abs_tol"))  
+{ /*
+  _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
   _dt = 0;
   _next_interval_output_time = 0.0;
@@ -65,7 +69,7 @@ ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & param
 
   _time = _time_old = _start_time;
   _problem.transient(true);
-
+ 
   if (parameters.isParamValid("predictor_scale"))
   {
     mooseWarning("Parameter 'predictor_scale' is deprecated, migrate your input file to use Predictor sub-block.");
@@ -82,12 +86,12 @@ ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & param
       mooseError("Input value for predictor_scale = "<< predscale << ", outside of permissible range (0 to 1)");
 
   }
-
+  
   if (!_restart_file_base.empty())
     _problem.setRestartFile(_restart_file_base);
-
+  
   setupTimeIntegrator();
-
+  
   if (_app.halfTransient()) // Cut timesteps and end_time in half...
   {
     _end_time /= 2.0;
@@ -144,20 +148,24 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
   //bool _adjust_initial_norm;
   his_initial_norm = getPostprocessorValue("InitialResidual");
+  his_final_norm = getPostprocessorValue("FinalResidual");
+    //TODO: throw a warning (not error) if no FinalResidual is selected in input file
   if (_picard_max_its > 1)
   {
-    //000// these changes ensure just one step a timestep_begin
-    //current_norm = my_current_norm + his_initial_norm;
-
-    // this is imprecise: it will be (other_initial_norm + current_norm) instead of 
-    //   (other_current_norm + current_norm). But that shouldn't be too bad, because it's only
-    //   taken one step since then. To improve, get access to the ending residual also (another PP).
+    //000// these changes ensure an appropriate tolerance at timestep_begin
+    
+      // is there a way to get his_final_norm without a postprocessor transfer?
+      //std::vector<MultiApp *> multi_apps = _problem._multi_apps(EXEC_TIMESTEP_END)[0].all();
+          // unfortunately _multi_apps is protected
+      //Real his_last_norm = multi_apps[i]._subproblem.finalNonlinearResidual();
+      //_console << "Multi-app end residual" << his_final_norm << std::endl; // did it work?
 
     if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
     {
       current_norm = my_current_norm;  //000//
       his_initial_norm = 0;            //000//
-      //mooseAssert(EXEC_TIMESTEP_BEGIN,"Residual Balance requires multi-app to execute on timestep_end");  //000// this only works if multiapp is on timestep_end
+        //000// Residual Balance only works if multiapp is on timestep_end. do something like:
+        //mooseAssert(EXEC_TIMESTEP_BEGIN,"Residual Balance currently requires multi-app to execute on timestep_end");  
       _picard_initial_norm = current_norm;
       _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (his_initial_norm == 0)
@@ -165,7 +173,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     }
     else
     {
-      current_norm = my_current_norm + his_initial_norm;  //000//
+      current_norm = my_current_norm + his_final_norm; //his_initial_norm;  //000//
       _console << "Current Picard Norm: " << current_norm << '\n';
     }
 
@@ -230,6 +238,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::POST_AUX);
     _problem.execTransfers(EXEC_TIMESTEP_END);
     _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1);
+
   }
   else
   {

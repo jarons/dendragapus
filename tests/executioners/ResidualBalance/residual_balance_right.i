@@ -45,7 +45,7 @@
 []
 
 [Postprocessors]
-  active = 'His_Residual_PP My_Residual_PP'
+  active = 'His_Residual_PP My_Residual_PP final_residual'
   [./gradTpp]
     type = cSideFluxAverage
     variable = Tfront
@@ -73,6 +73,9 @@
     type = InitialResidual
     execute_on = 'nonlinear initial'
   [../]
+  [./final_residual]
+    type = Residual
+  [../]
 []
 
 [Problem]
@@ -98,7 +101,6 @@
 
 [Outputs]
   # output_initial = true
-  active = ''
   exodus = true
   output_final = true
   [./console]

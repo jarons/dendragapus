@@ -72,8 +72,9 @@ protected:
   
   PostprocessorValue _new_tol; 
   
-  Real _min_abs_tol;
+  PostprocessorValue his_final_norm;
 
+  Real _min_abs_tol;
 private:
   Real current_norm; 
   Real my_current_norm; // the norm from this app only

@@ -51,7 +51,7 @@
 []
 
 [Postprocessors]
-  active = 'His_Residual_PP My_Residual_PP'
+  active = 'His_Residual_PP My_Residual_PP his_final_residual'
   [./rightFlux]
     # right
     type = cSideFluxAverage
@@ -85,6 +85,10 @@
     default = 0
     execute_on = 'timestep_begin initial'
   [../]
+  [./his_final_residual]
+    type = Receiver
+    default = 0
+  [../]
 []
 
 [Problem]
@@ -114,6 +118,7 @@
   line_search = basic
   tol_mult = 0.5
   InitialResidual = His_Residual_PP
+  FinalResidual = his_final_residual
 []
 
 [Outputs]
@@ -143,7 +148,7 @@
 []
 
 [Transfers]
-  active = 'send_Residual get_Residual'
+  active = 'send_Residual get_Residual get_final_residual'
   [./GetT1]
     type = MultiAppNearestNodeTransfer
     direction = from_multiapp
@@ -188,6 +193,14 @@
     reduction_type = minimum
     from_postprocessor = My_Residual_PP
     to_postprocessor = His_Residual_PP
+  [../]
+  [./get_final_residual]
+    type = MultiAppPostprocessorTransfer
+    direction = from_multiapp
+    multi_app = GetRight
+    reduction_type = minimum
+    from_postprocessor = final_residual
+    to_postprocessor = his_final_residual
   [../]
 []
 
