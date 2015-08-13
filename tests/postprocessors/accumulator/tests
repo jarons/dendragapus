@@ -1,0 +1,12 @@
+[Tests]
+  [./testRB]
+    type = 'Exodiff'
+    input = 'picard_accumulator.i'
+    exodiff = 'picard_accumulator_out.e'
+  [../]
+  [./test2]
+    type = 'Exodiff'
+    input = 'timestep_accumulator.i'
+    exodiff = 'timestep_accumulator_out.e'
+  [../]
+[]

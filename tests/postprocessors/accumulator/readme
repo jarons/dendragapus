@@ -1,0 +1,6 @@
+The AccumulatorPostprocessor only works if there is a call to
+_problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
+at the appropriate place. 
+
+Or you can execute it on Timestep_end if you are not doing Picard iteration.
+

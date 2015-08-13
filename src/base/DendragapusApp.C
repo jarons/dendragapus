@@ -10,6 +10,8 @@
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
 
+#include "AccumulatorPostprocessor.h"
+
 template<>
 InputParameters validParams<DendragapusApp>()
 {
@@ -54,6 +56,8 @@ DendragapusApp::registerObjects(Factory & factory)
   registerPostprocessor(InitialResidual);
   registerExecutioner(ResidualBalanceTransient);
   registerExecutioner(InterruptibleTransient);
+
+  registerPostprocessor(AccumulatorPostprocessor);
 }
 
 // External entry point for dynamic syntax association
