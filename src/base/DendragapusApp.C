@@ -7,17 +7,8 @@
 //important new things
 #include "ResidualBalanceTransient.h"
 #include "InterruptibleTransient.h"
-//#include "ResidualBalanceMultiApp.h" //not using this one
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
-
-//stuff to make the example problem work
-#include "RadiationBC.h"
-#include "gradRobinBC.h"
-#include "cDiffusion.h"
-#include "ConstConv.h"
-#include "cSideFluxAverage.h"
-#include "cLayeredSideFluxAverage.h"
 
 template<>
 InputParameters validParams<DendragapusApp>()
@@ -60,17 +51,9 @@ void
 DendragapusApp::registerObjects(Factory & factory)
 {
   registerMultiApp(InterruptibleTransientMultiApp);
-  //registerMultiApp(ResidualBalanceMultiApp);
   registerPostprocessor(InitialResidual);
   registerExecutioner(ResidualBalanceTransient);
   registerExecutioner(InterruptibleTransient);
-
-  registerKernel(cDiffusion);
-  registerKernel(ConstConv);
-  registerBoundaryCondition(RadiationBC);
-  registerBoundaryCondition(gradRobinBC);
-  registerPostprocessor(cSideFluxAverage);
-  registerUserObject(cLayeredSideFluxAverage);
 }
 
 // External entry point for dynamic syntax association
