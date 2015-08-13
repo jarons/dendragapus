@@ -326,6 +326,9 @@ ResidualBalanceTransient::takeStep(Real input_dt)
 
     solveStep(input_dt);
 
+    /*
+    // Remove this check, we check at the beginning of solveStep.
+    // We could reformulate this check like the other, but I don't think we gain anything.
     if (_picard_max_its > 1)
     {
       _picard_timestep_end_norm = _problem.computeResidualL2Norm();
@@ -344,6 +347,7 @@ ResidualBalanceTransient::takeStep(Real input_dt)
         return;
       }
     }
+    */
 
     ++_picard_it;
   }
