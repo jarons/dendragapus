@@ -280,6 +280,7 @@ InterruptibleTransient::solveStep(Real input_dt)
   _time_stepper->step();
 
   // We know whether or not the nonlinear solver thinks it converged, but we need to see if the executioner concurs
+  // Need to add a check to see when the sub-app is actually converged. I would like to avoid transferring initial and final residual postprocs, but probably need to.
   if (lastSolveConverged())
   {
     _console << COLOR_GREEN << " Solve Converged!" << COLOR_DEFAULT << std::endl;

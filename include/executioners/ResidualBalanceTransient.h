@@ -61,6 +61,7 @@ public:
   //iteration count (which starts at 0), increment by 1.
   Real numPicardIts() { return _picard_it+1; }
 
+  virtual void takeStep(Real input_dt = -1.0); // undoing multi-app reseting
 
 protected:
   /**

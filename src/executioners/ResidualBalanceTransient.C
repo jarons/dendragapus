@@ -292,3 +292,60 @@ ResidualBalanceTransient::endStep(Real input_time)
    }
 }
 
+// Try to over-ride reseting the sub-apps 
+void
+ResidualBalanceTransient::takeStep(Real input_dt)
+{
+  _picard_it = 0;
+
+  _problem.backupMultiApps(EXEC_TIMESTEP_BEGIN);
+  _problem.backupMultiApps(EXEC_TIMESTEP_END);
+
+  while (_picard_it<_picard_max_its && _picard_converged == false)
+  {
+    if (_picard_max_its > 1)
+    {
+      _console << "\nBeginning Picard Iteration " << _picard_it << "\n" << std::endl;
+
+      Real current_norm = _problem.computeResidualL2Norm();
+
+      if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
+      {
+        _picard_initial_norm = current_norm;
+        _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
+      }
+    }
+
+    // For every iteration other than the first, we need to restore the state of the MultiApps
+    if (_picard_it > 0)
+    {
+      // This is supposed to regain the previous behavior
+      //_problem.restoreMultiApps(EXEC_TIMESTEP_BEGIN);
+      //_problem.restoreMultiApps(EXEC_TIMESTEP_END);
+    }
+
+    solveStep(input_dt);
+
+    if (_picard_max_its > 1)
+    {
+      _picard_timestep_end_norm = _problem.computeResidualL2Norm();
+
+      _console << "Picard Norm after TIMESTEP_END MultiApps: " << _picard_timestep_end_norm << '\n';
+
+      Real max_norm = std::max(_picard_timestep_begin_norm, _picard_timestep_end_norm);
+
+      Real max_relative_drop = max_norm / _picard_initial_norm;
+
+      if (max_norm < _picard_abs_tol || max_relative_drop < _picard_rel_tol)
+      {
+        _console << "Picard converged!" << std::endl;
+
+        _picard_converged = true;
+        return;
+      }
+    }
+
+    ++_picard_it;
+  }
+}
+
