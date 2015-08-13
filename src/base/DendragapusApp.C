@@ -29,10 +29,9 @@ InputParameters validParams<DendragapusApp>()
   return params;
 }
 
-DendragapusApp::DendragapusApp(const InputParameters & parameters) :
+DendragapusApp::DendragapusApp(InputParameters parameters) :
     MooseApp(parameters)
 {
-  srand(processor_id());
 
   Moose::registerObjects(_factory);
   // ModulesApp::registerObjects(_factory);
@@ -52,21 +51,14 @@ extern "C" void DendragapusApp__registerApps() { DendragapusApp::registerApps();
 void
 DendragapusApp::registerApps()
 {
-#undef  registerApp
-#define registerApp(name) AppFactory::instance().reg<name>(#name)
   registerApp(DendragapusApp);
-#undef  registerApp
-#define registerApp(name) AppFactory::instance().regLegacy<name>(#name)
 }
 
 // External entry point for dynamic object registration
 extern "C" void DendragapusApp__registerObjects(Factory & factory) { DendragapusApp::registerObjects(factory); }
 void
 DendragapusApp::registerObjects(Factory & factory)
-{ 
-#undef registerObject
-#define registerObject(name) factory.reg<name>(stringifyName(name))
-
+{
   registerMultiApp(InterruptibleTransientMultiApp);
   //registerMultiApp(ResidualBalanceMultiApp);
   registerPostprocessor(InitialResidual);
@@ -78,11 +70,7 @@ DendragapusApp::registerObjects(Factory & factory)
   registerBoundaryCondition(RadiationBC);
   registerBoundaryCondition(gradRobinBC);
   registerPostprocessor(cSideFluxAverage);
-  registerUserObject(cLayeredSideFluxAverage);  
-
-#undef registerObject
-#define registerObject(name) factory.regLegacy<name>(stringifyName(name))
-
+  registerUserObject(cLayeredSideFluxAverage);
 }
 
 // External entry point for dynamic syntax association
@@ -90,10 +78,5 @@ extern "C" void DendragapusApp__associateSyntax(Syntax & syntax, ActionFactory &
 void
 DendragapusApp::associateSyntax(Syntax & syntax, ActionFactory & action_factory)
 {
-// #undef registerAction
-// #define registerAction(tplt, action) action_factory.reg<tplt>(stringifyName(tplt), action)
   //nothing here yet
-// #undef registerAction
-// #define registerAction(tplt, action) action_factory.regLegacy<tplt>(stringifyName(tplt), action)
-
 }
