@@ -28,14 +28,6 @@
 
 [BCs]
   active = 'Right_fixed Left_fixed'
-  [./gradRobin]
-    type = gradRobinBC
-    variable = T_left
-    boundary = right
-    grad_v = AV_dT_L
-    v = T1fromRight
-    Alpha = 0.5
-  [../]
   [./Left_fixed]
     type = DirichletBC
     variable = T_left
@@ -52,30 +44,6 @@
 
 [Postprocessors]
   active = 'His_Residual_PP My_Residual_PP his_final_residual'
-  [./rightFlux]
-    # right
-    type = cSideFluxAverage
-    variable = Tback
-    boundary = right
-    diffusion_coefficient = -1.0
-    execute_on = 'TIMESTEP_END initial'
-  [../]
-  [./T1L_pp]
-    type = PointValue
-    variable = Tback
-    point = '1 0 0'
-    execute_on = 'TIMESTEP_END initial'
-  [../]
-  [./NL]
-    type = NumNonlinearIterations
-    accumulate_over_step = true
-    execute_on = 'TIMESTEP_END initial'
-  [../]
-  [./Num_Pic]
-    # does executing on timestep_begin ensure that the last picard iteration was counted?
-    type = NumPicardIterations
-    execute_on = 'TIMESTEP_END timestep_begin initial'
-  [../]
   [./My_Residual_PP]
     type = InitialResidual
     execute_on = 'nonlinear initial'
@@ -98,11 +66,6 @@
 []
 
 [Executioner]
-  # picard_abs_tol = 1e-10 - not in charge
-  # nl_abs_tol = 1e-20
-  # nl_rel_step_tol = 1e-20-not in charge
-  # picard_rel_tol = 1e-09
-  # nl_abs_step_tol = 1e-20
   type = ResidualBalanceTransient
   num_steps = 1
   l_max_its = 50
@@ -131,10 +94,6 @@
     outlier_variable_norms = false
     output_on = 'timestep_end nonlinear failed'
   [../]
-  [./left_out]
-    file_base = lefto
-    type = Exodus
-  [../]
 []
 
 [MultiApps]
@@ -149,36 +108,6 @@
 
 [Transfers]
   active = 'send_Residual get_Residual get_final_residual'
-  [./GetT1]
-    type = MultiAppNearestNodeTransfer
-    direction = from_multiapp
-    multi_app = GetRight
-    source_variable = Tfront
-    variable = T1fromRight
-    fixed_meshes = true
-  [../]
-  [./sendT1]
-    type = MultiAppVariableValueSampleTransfer
-    direction = to_multiapp
-    multi_app = GetRight
-    source_variable = T_left
-    variable = T1fromLeft
-  [../]
-  [./get_dT_UO]
-    type = MultiAppUserObjectTransfer
-    direction = from_multiapp
-    multi_app = GetRight
-    variable = AV_dT_L
-    user_object = UO_dT_R
-  [../]
-  [./send_dT_UO]
-    # flux_layer_from_left
-    type = MultiAppUserObjectTransfer
-    direction = to_multiapp
-    multi_app = GetRight
-    variable = AV_dT_R
-    user_object = UO_dT_L
-  [../]
   [./send_Residual]
     type = MultiAppPostprocessorTransfer
     direction = to_multiapp

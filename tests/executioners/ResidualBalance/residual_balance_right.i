@@ -20,16 +20,6 @@
 
 [BCs]
   active = 'Fixed_left Right_fixed'
-  [./gradRobin]
-    # v: Tfront does better
-    # Coef -1
-    type = gradRobinBC
-    variable = Tfront
-    boundary = left
-    v = T1fromLeft
-    grad_v = AV_dT_R
-    Alpha = 0.7
-  [../]
   [./Right_fixed]
     type = DirichletBC
     variable = T_right
@@ -46,24 +36,6 @@
 
 [Postprocessors]
   active = 'His_Residual_PP My_Residual_PP final_residual'
-  [./gradTpp]
-    type = cSideFluxAverage
-    variable = Tfront
-    boundary = left
-    diffusion_coefficient = 0.1 # -0.1
-    execute_on = 'TIMESTEP_END initial'
-  [../]
-  [./T1_pp]
-    type = PointValue
-    variable = Tfront
-    point = '0 0 0'
-    execute_on = 'TIMESTEP_END initial'
-  [../]
-  [./NL_R]
-    type = NumNonlinearIterations
-    accumulate_over_step = true
-    execute_on = 'TIMESTEP_END initial'
-  [../]
   [./His_Residual_PP]
     type = Receiver
     default = 0
@@ -84,9 +56,6 @@
 []
 
 [Executioner]
-  # Preconditioned JFNK (default)
-  # l_max_its = 50
-  # 1e-8
   type = ResidualBalanceTransient
   num_steps = 1
   solve_type = PJFNK
@@ -108,12 +77,6 @@
     type = Console
     perf_log = true
     output_postprocessors_on = 'TIMESTEP_END timestep_begin'
-  [../]
-  [./exod]
-    # output_failed = true
-    file_base = righto-2D4
-    type = Exodus
-    output_on = 'timestep_begin failed'
   [../]
 []
 

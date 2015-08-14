@@ -4,4 +4,9 @@
     input = 'residual_balance_left.i'
     exodiff = 'residual_balance_left_out.e residual_balance_left_out_GetRight0.e'
   [../]
+  [./better_test]
+    type = 'Exodiff'
+    input = 'rb_master.i'
+    exodiff = 'rb_master_exodus.e rb_master_out_sub0.e'
+  [../]
 []
