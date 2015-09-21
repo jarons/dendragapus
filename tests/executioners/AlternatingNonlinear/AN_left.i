@@ -74,7 +74,7 @@
 
 [Outputs]
   exodus = true
-  output_on = 'timestep_end final'
+  execute_on = 'timestep_end final'
 []
 
 [MultiApps]
@@ -86,4 +86,3 @@
     input_files = AN_right.i
   [../]
 []
-

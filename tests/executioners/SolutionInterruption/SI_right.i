@@ -51,7 +51,7 @@
 []
 
 [Outputs]
-  # output_initial = true
+  #
   exodus = true
   output_final = true
 []

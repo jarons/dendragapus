@@ -74,7 +74,7 @@
 [Outputs]
   exodus = true
   solution_history = true
-  output_on = 'timestep_end final'
+  execute_on = 'timestep_end final'
 []
 
 [MultiApps]
@@ -86,4 +86,3 @@
     input_files = SI_right.i
   [../]
 []
-
