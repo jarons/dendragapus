@@ -69,16 +69,15 @@
 [Outputs]
   exodus = true
   solution_history = true
-  output_on = 'timestep_end final'
+  execute_on = 'timestep_end final'
   [./console]
     type = Console
     perf_log = true
     outlier_variable_norms = false
-    output_on = 'timestep_end nonlinear failed'
+    execute_on = 'timestep_end nonlinear failed'
   [../]
   [./left_out]
     file_base = lefto
     type = Exodus
   [../]
 []
-
