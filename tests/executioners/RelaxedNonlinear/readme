@@ -1,0 +1,3 @@
+9/21/15
+Rather than basing convergence on the other application's residual norm, you can just set nl_rel_tol = 0.1. Then let Picard_rel/abs_tol take care of convergence. To ensure that both are converged use ResidualBalanceTransient executioner.
+Later we should create an executioner that only needs the other application's final residual in order to judge convergence. But for now ResidualBalance works fine.

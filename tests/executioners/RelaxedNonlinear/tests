@@ -1,0 +1,7 @@
+[Tests]
+  [./better_test]
+    type = 'Exodiff'
+    input = 'rn_master.i'
+    exodiff = 'rn_master_exodus.e rn_master_out_sub0.e'
+  [../]
+[]
