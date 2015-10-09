@@ -81,6 +81,7 @@ private:
   Real my_current_norm; // the norm from this app only
   bool _adjust_initial_norm;
   Real his_initial_norm;
+  Real his_initial_norm_old;
 };
 
 #endif //RESIDUALBALANCETRANSIENT_H

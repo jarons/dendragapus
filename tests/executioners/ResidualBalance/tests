@@ -9,4 +9,9 @@
     input = 'rb_master.i'
     exodiff = 'rb_master_exodus.e rb_master_out_sub0.e'
   [../]
+  [./Backward]
+    type = 'Exodiff'
+    input = 'rb_master_backward.i'
+    exodiff = 'rb_master_backward_exodus.e rb_master_backward_out_sub0.e'
+  [../]
 []

@@ -35,7 +35,7 @@ public:
    * This should return the Initial nonlinear residual.
    */
   virtual Real getValue();
-  
+
   virtual void finalize();
 
 protected:

@@ -36,6 +36,8 @@
 #include <iomanip>
 #include <algorithm> // min(a,b)
 
+#include "InitialResidual.h"
+
 template<>
 InputParameters validParams<ResidualBalanceTransient>()
 {
@@ -54,7 +56,8 @@ ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & param
     _new_tol_mult(getParam<Real>("tol_mult")),
     _new_tol(getPostprocessorValue("InitialResidual")),
     his_final_norm(getPostprocessorValue("FinalResidual")),
-    _min_abs_tol(getParam<Real>("nl_abs_tol"))  
+    _min_abs_tol(getParam<Real>("nl_abs_tol")),
+    his_initial_norm_old(-1.0)
 { /*
   _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
@@ -124,6 +127,8 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   // Increment time
   _time = _time_old + _dt;
 
+  // You could evaluate/store his_initial_norm_old  here
+  
   _problem.execTransfers(EXEC_TIMESTEP_BEGIN);
   _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
 
@@ -144,10 +149,15 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   // Perform output for timestep begin
   _problem.outputStep(EXEC_TIMESTEP_BEGIN);
 
-  //Real current_norm; //moved this line to .h file
   my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
-  //bool _adjust_initial_norm;
   his_initial_norm = getPostprocessorValue("InitialResidual");
+    //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
+  
+  // if this is sub app and its the initial_residual wasn't updated 
+      // or use getPostprocessorValueOld("InitialResidual")
+  if (_picard_max_its==1 && his_initial_norm == his_initial_norm_old)
+      his_initial_norm = 0;
+  
   his_final_norm = getPostprocessorValue("FinalResidual");
     //TODO: throw a warning (not error) if no FinalResidual is selected in input file
   if (_picard_max_its > 1)
@@ -162,18 +172,19 @@ ResidualBalanceTransient::solveStep(Real input_dt)
 
     if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
     {
-      current_norm = my_current_norm;  //000//
-      his_initial_norm = 0;            //000//
-        //000// Residual Balance only works if multiapp is on timestep_end. do something like:
-        //mooseAssert(EXEC_TIMESTEP_BEGIN,"Residual Balance currently requires multi-app to execute on timestep_end");  
-      _picard_initial_norm = current_norm;
+      current_norm = my_current_norm;  
+      if (his_initial_norm == his_initial_norm_old) //EXEC_TIMESTEP_END
+        his_initial_norm = 0; 
+      // set his_initial_norm to 0 so that we can start a new timestep properly
+      
+      _picard_initial_norm = current_norm + his_initial_norm; 
       _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (his_initial_norm == 0)
         _adjust_initial_norm = true;
     }
     else
     {
-      current_norm = my_current_norm + his_final_norm; //his_initial_norm;  //000//
+      current_norm = my_current_norm + his_final_norm; 
       _console << "Current Picard Norm: " << current_norm << '\n';
     }
 
@@ -191,7 +202,9 @@ ResidualBalanceTransient::solveStep(Real input_dt)
 
       _picard_converged = true;
       _time_stepper->acceptStep();
-      // Accumulator Postprocessor goes now, at the actual timestep_end
+
+      // Accumulator Postprocessor goes now, at the actual timestep_end, but
+      //   only if _picard_max_its>1: 
       _problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
       return;
     }
@@ -199,7 +212,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   
   // For multiple sub-apps you'll need an aggregate PP to collect residuals in
   //    or some way to keep the number of PPs low.
-
+  
   if (his_initial_norm ==0)
   { his_initial_norm = my_current_norm; } // this statement is nearly meaningless,
   // just ensure it won't revert us back to Solution Interruption.
@@ -300,6 +313,8 @@ ResidualBalanceTransient::takeStep(Real input_dt)
 
   _problem.backupMultiApps(EXEC_TIMESTEP_BEGIN);
   _problem.backupMultiApps(EXEC_TIMESTEP_END);
+  
+  his_initial_norm_old = getPostprocessorValue("InitialResidual");
 
   while (_picard_it<_picard_max_its && _picard_converged == false)
   {
