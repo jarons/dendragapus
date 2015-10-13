@@ -19,7 +19,6 @@
 []
 
 [BCs]
-  active = 'Fixed_left Right_fixed'
   [./Right_fixed]
     type = DirichletBC
     variable = T_right
@@ -35,7 +34,6 @@
 []
 
 [Postprocessors]
-  active = 'His_Residual_PP My_Residual_PP final_residual'
   [./His_Residual_PP]
     type = Receiver
     default = 0
@@ -69,14 +67,12 @@
 []
 
 [Outputs]
-  #
   exodus = true
-  output_final = true
+  execute_on = 'TIMESTEP_END final' # INITIAL 
   [./console]
     # linear_residuals = true
     type = Console
     perf_log = true
-    output_postprocessors_on = 'TIMESTEP_END timestep_begin'
   [../]
 []
 

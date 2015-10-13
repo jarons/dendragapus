@@ -27,7 +27,6 @@
 []
 
 [BCs]
-  active = 'Right_fixed Left_fixed'
   [./Left_fixed]
     type = DirichletBC
     variable = T_left
@@ -43,7 +42,6 @@
 []
 
 [Postprocessors]
-  active = 'His_Residual_PP My_Residual_PP his_final_residual'
   [./My_Residual_PP]
     type = InitialResidual
     execute_on = 'nonlinear initial'
@@ -87,6 +85,7 @@
 [Outputs]
   exodus = true
   solution_history = true
+  execute_on = TIMESTEP_END # INITIAL 
   [./console]
     type = Console
     perf_log = true
@@ -106,7 +105,6 @@
 []
 
 [Transfers]
-  active = 'send_Residual get_Residual get_final_residual'
   [./send_Residual]
     type = MultiAppPostprocessorTransfer
     direction = to_multiapp
@@ -131,3 +129,4 @@
     to_postprocessor = his_final_residual
   [../]
 []
+

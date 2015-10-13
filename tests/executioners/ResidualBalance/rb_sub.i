@@ -73,16 +73,16 @@
 
 [Outputs]
   # output_initial = true
-  output_final = true
+  execute_on = 'INITIAL TIMESTEP_END final'
   [./console]
     # linear_residuals = true
     type = Console
     perf_log = true
-    output_postprocessors_on = 'TIMESTEP_END timestep_begin'
   [../]
   [./Exodus]
     type = Exodus
     output_nonlinear = true
+    execute_on = TIMESTEP_END # INITIAL 
   [../]
 []
 

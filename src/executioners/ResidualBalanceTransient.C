@@ -56,8 +56,8 @@ ResidualBalanceTransient::ResidualBalanceTransient(const InputParameters & param
     _new_tol_mult(getParam<Real>("tol_mult")),
     _new_tol(getPostprocessorValue("InitialResidual")),
     his_final_norm(getPostprocessorValue("FinalResidual")),
-    _min_abs_tol(getParam<Real>("nl_abs_tol")),
-    his_initial_norm_old(-1.0)
+    _min_abs_tol(getParam<Real>("nl_abs_tol"))
+    //his_initial_norm_old(-1.0)
 { /*
   _problem.getNonlinearSystem().setDecomposition(_splitting);
   _t_step = 0;
@@ -154,16 +154,14 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
   
   // if this is sub app and its the initial_residual wasn't updated 
-      // or use getPostprocessorValueOld("InitialResidual")
-  if (_picard_max_its==1 && his_initial_norm == his_initial_norm_old)
-      his_initial_norm = 0;
+      // or use his_initial_norm_old
+  if (_picard_max_its==1 && his_initial_norm == getPostprocessorValueOld("InitialResidual"))
+    his_initial_norm = 0;
   
   his_final_norm = getPostprocessorValue("FinalResidual");
     //TODO: throw a warning (not error) if no FinalResidual is selected in input file
   if (_picard_max_its > 1)
-  {
-    //000// these changes ensure an appropriate tolerance at timestep_begin
-    
+  {    
       // is there a way to get his_final_norm without a postprocessor transfer?
       //std::vector<MultiApp *> multi_apps = _problem._multi_apps(EXEC_TIMESTEP_END)[0].all();
           // unfortunately _multi_apps is protected
@@ -173,7 +171,8 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
     {
       current_norm = my_current_norm;  
-      if (his_initial_norm == his_initial_norm_old) //EXEC_TIMESTEP_END
+      //his_initial_norm_old) //EXEC_TIMESTEP_END
+      if (his_initial_norm == getPostprocessorValueOld("InitialResidual")) 
         his_initial_norm = 0; 
       // set his_initial_norm to 0 so that we can start a new timestep properly
       
@@ -290,6 +289,7 @@ ResidualBalanceTransient::endStep(Real input_time)
     _problem.outputStep(EXEC_TIMESTEP_END);
 
     // Output MultiApps if we were doing Picard iterations
+    /* Remove this to match 9/14/15 update to Transient.C
     if (_picard_max_its > 1)
     {
       _problem.advanceMultiApps(EXEC_TIMESTEP_BEGIN);
@@ -298,6 +298,7 @@ ResidualBalanceTransient::endStep(Real input_time)
 
 		//Jaron was here. //Is this needed?
     _problem.advanceMultiApps(EXEC_NONLINEAR);
+     */
 
     //output
     if (_time_interval && (_time + _timestep_tolerance >= _next_interval_output_time))
@@ -314,7 +315,8 @@ ResidualBalanceTransient::takeStep(Real input_dt)
   _problem.backupMultiApps(EXEC_TIMESTEP_BEGIN);
   _problem.backupMultiApps(EXEC_TIMESTEP_END);
   
-  his_initial_norm_old = getPostprocessorValue("InitialResidual");
+  //his_initial_norm_old = getPostprocessorValue("InitialResidual");
+  // _console << "Update his_old_initial \n" << std::endl;
 
   while (_picard_it<_picard_max_its && _picard_converged == false)
   {

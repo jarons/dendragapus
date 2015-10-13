@@ -72,6 +72,7 @@
 [Outputs]
   # output_initial = true
   output_final = true
+  execute_on = TIMESTEP_END # INITIAL 
   [./console]
     # linear_residuals = true
     type = Console
@@ -81,6 +82,7 @@
   [./Exodus]
     type = Exodus
     output_nonlinear = true
+    execute_on = TIMESTEP_END # INITIAL 
   [../]
 []
 

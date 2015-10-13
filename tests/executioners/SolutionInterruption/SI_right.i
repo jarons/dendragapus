@@ -51,8 +51,7 @@
 []
 
 [Outputs]
-  #
   exodus = true
-  output_final = true
+  execute_on = TIMESTEP_END # INITIAL 
 []
 

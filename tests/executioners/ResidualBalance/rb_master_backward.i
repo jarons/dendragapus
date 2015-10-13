@@ -92,16 +92,16 @@
 
 [Outputs]
   solution_history = true
-  output_on = 'timestep_end final'
+  execute_on = 'INITIAL TIMESTEP_END final'
   [./console]
     type = Console
     perf_log = true
     outlier_variable_norms = false
-    output_on = 'timestep_end nonlinear failed'
   [../]
   [./exodus]
     type = Exodus
     output_nonlinear = true
+    execute_on = TIMESTEP_END # INITIAL 
   [../]
 []
 

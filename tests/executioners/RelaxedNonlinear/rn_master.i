@@ -81,13 +81,14 @@
   picard_max_its = 100
   picard_abs_tol = 1e-10
   nl_rel_tol = 0.1
-  tol_mult = 1.0e-20 #keep this from acting
+  tol_mult = 1.0e-20 # keep this from acting
   InitialResidual = His_Residual_PP
   FinalResidual = his_final_residual
 []
 
 [Outputs]
   output_on = 'timestep_end final'
+  execute_on = TIMESTEP_END # INITIAL 
   [./console]
     type = Console
     perf_log = true
@@ -97,6 +98,7 @@
   [./exodus]
     type = Exodus
     output_nonlinear = true
+    execute_on = TIMESTEP_END # INITIAL 
   [../]
 []
 
