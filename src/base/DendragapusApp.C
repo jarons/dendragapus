@@ -1,8 +1,7 @@
 #include "DendragapusApp.h"
 #include "Moose.h"
 #include "AppFactory.h"
-// #include "ModulesApp.h" Also see Makefile for including modules
-//   Allows ModulesApp (two locations in this file)
+#include "MooseSyntax.h"
 
 //important new things
 #include "ResidualBalanceTransient.h"
@@ -10,7 +9,7 @@
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
 
-#include "AccumulatorPostprocessor.h"
+// #include "AccumulatorPostprocessor.h"
 
 template<>
 InputParameters validParams<DendragapusApp>()
@@ -58,7 +57,7 @@ DendragapusApp::registerObjects(Factory & factory)
   registerExecutioner(ResidualBalanceTransient);
   registerExecutioner(InterruptibleTransient);
 
-  registerPostprocessor(AccumulatorPostprocessor);
+  // registerPostprocessor(AccumulatorPostprocessor);
 }
 
 // External entry point for dynamic syntax association
