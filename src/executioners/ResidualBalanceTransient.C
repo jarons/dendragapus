@@ -136,7 +136,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   _time_stepper->preSolve();
 
   _problem.timestepSetup();
-
+ /*  These lines replaced by the following one
   // Compute Pre-Aux User Objects (Timestep begin)
   _problem.computeUserObjects(EXEC_TIMESTEP_BEGIN, UserObjectWarehouse::PRE_AUX);
 
@@ -147,7 +147,9 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   _problem.computeUserObjects(EXEC_TIMESTEP_BEGIN, UserObjectWarehouse::POST_AUX);
 
   // Perform output for timestep begin
-  _problem.outputStep(EXEC_TIMESTEP_BEGIN);
+  _problem.outputStep(EXEC_TIMESTEP_BEGIN);  */
+  
+  _problem.execute(EXEC_TIMESTEP_BEGIN);
 
   my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
   his_initial_norm = getPostprocessorValue("InitialResidual");
@@ -204,7 +206,8 @@ ResidualBalanceTransient::solveStep(Real input_dt)
 
       // Accumulator Postprocessor goes now, at the actual timestep_end, but
       //   only if _picard_max_its>1: 
-      _problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
+      //_problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
+      _problem.execute(EXEC_CUSTOM); // new method
       return;
     }
   }
@@ -236,7 +239,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
       _time_stepper->acceptStep();
 
     _solution_change_norm = _problem.solutionChangeNorm();
-
+/* Replace this stuff with the following
     _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::PRE_AUX);
 #if 0
     // User definable callback
@@ -249,7 +252,16 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     _problem.computeAuxiliaryKernels(EXEC_TIMESTEP_END);
     _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::POST_AUX);
     _problem.execTransfers(EXEC_TIMESTEP_END);
-    _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1);
+    _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1); */
+    
+      _problem.onTimestepEnd();
+      _problem.execute(EXEC_TIMESTEP_END);
+
+      _problem.execTransfers(EXEC_TIMESTEP_END);
+      _multiapps_converged = _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1);
+
+      if (!_multiapps_converged)
+        return;
 
   }
   else
