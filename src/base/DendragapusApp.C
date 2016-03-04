@@ -1,7 +1,9 @@
 #include "DendragapusApp.h"
 #include "Moose.h"
 #include "AppFactory.h"
-#include "MooseSyntax.h"
+#include "MooseSyntax.h" //new from 
+// #include "ModulesApp.h" Also see Makefile for including modules
+//   Allows ModulesApp (two locations in this file)
 
 //important new things
 #include "ResidualBalanceTransient.h"
@@ -25,7 +27,8 @@ InputParameters validParams<DendragapusApp>()
 DendragapusApp::DendragapusApp(InputParameters parameters) :
     MooseApp(parameters)
 {
-
+  srand(processor_id()); //added 12/14/15
+    
   Moose::registerObjects(_factory);
   // ModulesApp::registerObjects(_factory);
   DendragapusApp::registerObjects(_factory);

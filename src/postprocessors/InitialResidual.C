@@ -16,7 +16,8 @@
 
 #include "FEProblem.h"
 #include "SubProblem.h"
-#include "NonlinearSystem.h"
+#include "NonlinearSystem.h" //New requirement on 12/14/15
+   //re-solves: error: member access into incomplete type 'NonlinearSystem'
 
 template<>
 InputParameters validParams<InitialResidual>()
@@ -35,7 +36,7 @@ void
 InitialResidual::execute()
 {
   //_value=_fe_problem.getNonlinearSystem()._initial_residual;
-  _value=_fe_problem.getNonlinearSystem()._initial_residual_before_preset_bcs;
+  _value=_fe_problem.getNonlinearSystem()._initial_residual_before_preset_bcs; //_>?
 }
 
 Real
