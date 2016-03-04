@@ -18,6 +18,7 @@
 #include "AllLocalDofIndicesThread.h"
 #include "Output.h"
 #include "Console.h"
+#include "MooseMesh.h"
 
 // libMesh includes
 #include "libmesh/mesh_tools.h"
@@ -108,9 +109,9 @@ InterruptibleTransientMultiApp::appTransferVector(unsigned int app, std::string 
     _transferred_vars.push_back(var_name);
 
   if (_interpolate_transfers)
-    return appProblem(app)->getAuxiliarySystem().system().get_vector("transfer");
+    return appProblem(app).getAuxiliarySystem().system().get_vector("transfer");
 
-  return appProblem(app)->getAuxiliarySystem().solution();
+  return appProblem(app).getAuxiliarySystem().solution();
 }
 
 void
@@ -163,7 +164,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
   for (unsigned int i=0; i<_my_num_apps; i++)
   {
 
-    FEProblem * problem = appProblem(_first_local_app + i);
+    FEProblem & problem = appProblem(_first_local_app + i);
 //_console << "Not dead yet, 1" << std::endl;
     InterruptibleTransient * ex = _transient_executioners[i];
     // ResidualBalanceTransient * ex = _transient_executioners[i];
@@ -185,7 +186,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
       if (_interpolate_transfers)
       {
-        AuxiliarySystem & aux_system = problem->getAuxiliarySystem();
+        AuxiliarySystem & aux_system = problem.getAuxiliarySystem();
         System & libmesh_aux_system = aux_system.system();
 
         NumericVector<Number> & solution = *libmesh_aux_system.solution;
@@ -200,15 +201,15 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
         // Snag all of the local dof indices for all of these variables
         AllLocalDofIndicesThread aldit(libmesh_aux_system, _transferred_vars);
-        ConstElemRange & elem_range = *problem->mesh().getActiveLocalElementRange();
+        ConstElemRange & elem_range = *(problem.mesh().getActiveLocalElementRange());
         Threads::parallel_reduce(elem_range, aldit);
 
         _transferred_dofs = aldit._all_dof_indices;
       }
 
       // Disable/enable output for sub cycling
-      problem->allowOutput(_output_sub_cycles); // disables all outputs, including console
-      problem->allowOutput<Console>(_print_sub_cycles); // re-enables Console to print, if desired
+      problem.allowOutput(_output_sub_cycles); // disables all outputs, including console
+      problem.allowOutput<Console>(_print_sub_cycles); // re-enables Console to print, if desired
 
       ex->setTargetTime(target_time-app_time_offset);
 
@@ -244,8 +245,8 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
           Real one_minus_step_percent = 1.0 - step_percent;
 
           // Do the interpolation for each variable that was transferred to
-          FEProblem * problem = appProblem(_first_local_app + i);
-          AuxiliarySystem & aux_system = problem->getAuxiliarySystem();
+          FEProblem & problem = appProblem(_first_local_app + i);
+          AuxiliarySystem & aux_system = problem.getAuxiliarySystem();
           System & libmesh_aux_system = aux_system.system();
 
           NumericVector<Number> & solution = *libmesh_aux_system.solution;
@@ -299,7 +300,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
           at_steady = true;
 
           // Indicate that the next output call (occurs in ex->endStep()) should output, regardless of intervals etc...
-          problem->forceOutput();
+          problem.forceOutput();
 
           // Clean up the end
           ex->endStep(target_time-app_time_offset);
@@ -310,7 +311,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
       // If we were looking for a steady state, but didn't reach one, we still need to output one more time, regardless of interval
       if (!at_steady)
-        problem->outputStep(EXEC_FORCED);
+        problem.outputStep(EXEC_FORCED);
 
     } // sub_cycling
     else if (_tolerate_failure)
@@ -334,7 +335,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
         }
       }
       if (auto_advance)
-        problem->allowOutput(true);
+        problem.allowOutput(true);
 
       if (_re_solved)
         ex->re_takeStep(dt); //we could do it this way because the executioner can't call our methods
@@ -373,7 +374,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
               {
                 if (ex->getTime() + app_time_offset + ex->timestepTol()*std::abs(ex->getTime()) >= target_time)
                 {
-                  problem->outputStep(EXEC_FORCED);
+                  problem.outputStep(EXEC_FORCED);
                   caught_up = true;
                 }
               }
@@ -397,7 +398,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
     }
 
     // Re-enable all output (it may of been disabled by sub-cycling)
-    problem->allowOutput(true);
+    problem.allowOutput(true);
 
 
     //_re_solved = false;// I think this should go here, at ~163 now
@@ -422,7 +423,7 @@ InterruptibleTransientMultiApp::advanceStep()
   {
     for (unsigned int i=0; i<_my_num_apps; i++)
     {
-      /*FEProblem * problem =*/ appProblem(_first_local_app + i);
+      /*FEProblem & problem =*/ appProblem(_first_local_app + i);
       // Transient * ex = _transient_executioners[i];
       InterruptibleTransient * ex = _transient_executioners[i];
       // ResidualBalanceTransient * ex = _transient_executioners[i]; 
@@ -499,10 +500,10 @@ InterruptibleTransientMultiApp::resetApp(unsigned int global_app, Real /*time*/)
 
     // Setup the app, disable the output so that the initial condition does not output
     // When an app is reset the initial condition was effectively already output before reset
-    FEProblem * problem = appProblem(local_app );
-    problem->allowOutput(false);
+    FEProblem & problem = appProblem(local_app );
+    problem.allowOutput(false);
     setupApp(local_app, time);
-    problem->allowOutput(true);
+    problem.allowOutput(true);
 
     // Swap back
     Moose::swapLibMeshComm(swapped);
@@ -522,7 +523,7 @@ InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXM
     mooseError("MultiApp " << _name << " is not using a Method A Transient Executioner!");
 
   // Get the FEProblem for the current MultiApp
-  FEProblem * problem = appProblem(_first_local_app + i);
+  FEProblem & problem = appProblem(_first_local_app + i);
 
   // Update the file numbers for the outputs from the parent application
   app->getOutputWarehouse().setFileNumbers(_app.getOutputFileNumbers());
@@ -532,7 +533,7 @@ InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXM
 
   if (_interpolate_transfers)
   {
-    AuxiliarySystem & aux_system = problem->getAuxiliarySystem();
+    AuxiliarySystem & aux_system = problem.getAuxiliarySystem();
     System & libmesh_aux_system = aux_system.system();
 
     // We'll store a copy of the auxiliary system's solution at the old time in here
@@ -543,7 +544,7 @@ InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXM
   }
 
   ex->preExecute();
-  problem->advanceState();
+  problem.advanceState();
   _transient_executioners[i] = ex;
 }
 

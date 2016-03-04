@@ -16,6 +16,7 @@
 
 #include "FEProblem.h"
 #include "SubProblem.h"
+#include "NonlinearSystem.h"
 
 template<>
 InputParameters validParams<InitialResidual>()
