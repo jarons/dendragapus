@@ -42,7 +42,7 @@ template<>
 InputParameters validParams<AutoRBTransient>()
 {
   InputParameters params = validParams<Transient>(); 
-  params.addParam<Real>("tol_mult",1,"(Other residual)*this=(new_abs_tol)"); 
+  params.addParam<Real>("tol_mult",0.1,"0<this<1. (Other residual)*this=(new_abs_tol)"); 
   params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the InitialResidual postprocessor you are trying to get.");
   params.addParam<PostprocessorName>("FinalResidual",0.0, "The name of the Residual postprocessor you are trying to get.");
   params.addParam<Real>("nl_abs_tol",1e-50,"Set this to the same as nl_abs_tol"); //this overrides other nl_abs_tol
@@ -171,11 +171,26 @@ AutoRBTransient::solveStep(Real input_dt)
       return;
     }
   }
+  else // this is the sub-app
+  {
+      // If this is the first Picard iteration of the timestep
+      if ( _his_initial_norm == getPostprocessorValueOld("InitialResidual") )
+      {
+        _spectral_radius = _new_tol_mult;
+        _current_norm = _his_final_norm + _my_current_norm;
+      }
+      else
+      {
+        _current_norm_old = _current_norm;
+        _current_norm = _his_final_norm + _my_current_norm;
+        _spectral_radius = _current_norm / _current_norm_old;
+      }
+  }
   
   // For multiple sub-apps you'll need an aggregate PP to collect residuals in
   //    or some way to keep the number of PPs low.
   
-  if (_his_initial_norm ==0)
+  if (_his_initial_norm == 0)
   { _his_initial_norm = _my_current_norm; } // this statement is nearly meaningless,
   // just ensure it won't revert us back to Solution Interruption.
   // In other words, assume the other residual is comparable

@@ -14,4 +14,9 @@
     input = 'rb_master_backward.i'
     exodiff = 'rb_master_backward_exodus.e rb_master_backward_out_sub0.e'
   [../]
+  [./AutoRB]
+    type = 'Exodiff'
+    input = 'autoRB_master.i'
+    exodiff = 'autoRB_master_exodus.e autoRB_master_out_sub0.e'
+  [../]
 []
