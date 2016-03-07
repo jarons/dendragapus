@@ -10,6 +10,7 @@
 #include "InterruptibleTransient.h"
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
+#include "AutoRBTransient.h"
 
 #include "AccumulatorPostprocessor.h"
 
@@ -59,6 +60,7 @@ DendragapusApp::registerObjects(Factory & factory)
   registerPostprocessor(InitialResidual);
   registerExecutioner(ResidualBalanceTransient);
   registerExecutioner(InterruptibleTransient);
+  registerExecutioner(AutoRBTransient);
 
   registerPostprocessor(AccumulatorPostprocessor);
 }
