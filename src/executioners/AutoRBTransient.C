@@ -58,51 +58,7 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _his_final_norm(getPostprocessorValue("FinalResidual")),
     _min_abs_tol(getParam<Real>("nl_abs_tol"))
     //his_initial_norm_old(-1.0)
-{ /*
-  _problem.getNonlinearSystem().setDecomposition(_splitting);
-  _t_step = 0;
-  _dt = 0;
-  _next_interval_output_time = 0.0;
-
-  // Either a start_time has been forced on us, or we want to tell the App about what our start time is (in case anyone else is interested.
-  if (_app.hasStartTime())
-    _start_time = _app.getStartTime();
-  else
-    _app.setStartTime(_start_time);
-
-  _time = _time_old = _start_time;
-  _problem.transient(true);
- 
-  if (parameters.isParamValid("predictor_scale"))
-  {
-    mooseWarning("Parameter 'predictor_scale' is deprecated, migrate your input file to use Predictor sub-block.");
-
-    Real predscale = getParam<Real>("predictor_scale");
-    if (predscale >= 0.0 && predscale <= 1.0)
-    {
-      InputParameters params = _app.getFactory().getValidParams("SimplePredictor");
-      params.set<Real>("scale") = predscale;
-      _problem.addPredictor("SimplePredictor", "predictor", params);
-    }
-
-    else
-      mooseError("Input value for predictor_scale = "<< predscale << ", outside of permissible range (0 to 1)");
-
-  }
-  
-  if (!_restart_file_base.empty())
-    _problem.setRestartFile(_restart_file_base);
-  
-  setupTimeIntegrator();
-  
-  if (_app.halfTransient()) // Cut timesteps and end_time in half...
-  {
-    _end_time /= 2.0;
-    _num_steps /= 2.0;
-
-    if (_num_steps == 0) // Always do one step in the first half
-      _num_steps = 1;
-  } */
+{ 
 }
 
 AutoRBTransient::~AutoRBTransient()
@@ -127,7 +83,7 @@ AutoRBTransient::solveStep(Real input_dt)
   // Increment time
   _time = _time_old + _dt;
 
-  // You could evaluate/store his_initial_norm_old  here
+  // You could evaluate/store _his_initial_norm_old  here
   
   _problem.execTransfers(EXEC_TIMESTEP_BEGIN);
   _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
@@ -182,10 +138,13 @@ AutoRBTransient::solveStep(Real input_dt)
       _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (_his_initial_norm == 0)
         _adjust_initial_norm = true;
+      _spectral_radius = _new_tol_mult;
     }
     else
     {
+      _current_norm_old = _current_norm;
       _current_norm = _my_current_norm + _his_final_norm; 
+      _spectral_radius = _current_norm / _current_norm_old;
       _console << "Current Picard Norm: " << _current_norm << '\n';
     }
 
@@ -193,6 +152,7 @@ AutoRBTransient::solveStep(Real input_dt)
     {
       _picard_initial_norm = _picard_initial_norm + _his_initial_norm;
       _console << "Adjusted Initial Picard Norm: " << _picard_initial_norm << '\n';
+      _spectral_radius = _current_norm / _picard_initial_norm;
     }
 
     Real _relative_drop = _current_norm / _picard_initial_norm;
@@ -220,7 +180,8 @@ AutoRBTransient::solveStep(Real input_dt)
   // just ensure it won't revert us back to Solution Interruption.
   // In other words, assume the other residual is comparable
 
-  _new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
+  //_new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
+  _new_tol = std::min(_his_initial_norm*_spectral_radius*_spectral_radius, 0.95*_my_current_norm);
   // you may want 0.95 to be a parameter for the user to (not) change
   if (_new_tol < _min_abs_tol)
   { _new_tol = _min_abs_tol;}

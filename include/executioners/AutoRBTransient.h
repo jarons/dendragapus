@@ -78,6 +78,8 @@ protected:
   Real _min_abs_tol;
 private:
   Real _current_norm; 
+  Real _current_norm_old; //this is a bad name
+  Real _spectral_radius; //estimate of the spectral radius
   Real _my_current_norm; // the norm from this app only
   bool _adjust_initial_norm;
   Real _his_initial_norm;
