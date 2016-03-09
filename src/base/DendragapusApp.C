@@ -13,6 +13,7 @@
 #include "AutoRBTransient.h"
 
 #include "AccumulatorPostprocessor.h"
+#include "AitkenPredictor.h"
 
 template<>
 InputParameters validParams<DendragapusApp>()
@@ -63,6 +64,7 @@ DendragapusApp::registerObjects(Factory & factory)
   registerExecutioner(AutoRBTransient);
 
   registerPostprocessor(AccumulatorPostprocessor);
+  registerPredictor(AitkenPredictor);
 }
 
 // External entry point for dynamic syntax association
