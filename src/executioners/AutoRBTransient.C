@@ -56,7 +56,8 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _new_tol_mult(getParam<Real>("tol_mult")),
     _new_tol(getPostprocessorValue("InitialResidual")),
     _his_final_norm(getPostprocessorValue("FinalResidual")),
-    _min_abs_tol(getParam<Real>("nl_abs_tol"))
+    _min_abs_tol(getParam<Real>("nl_abs_tol")),
+    _current_norm_old(0)
     //his_initial_norm_old(-1.0)
 { 
 }
@@ -108,16 +109,19 @@ AutoRBTransient::solveStep(Real input_dt)
   _problem.execute(EXEC_TIMESTEP_BEGIN);
 
   _my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
+  _his_initial_norm_old = _his_initial_norm;
   _his_initial_norm = getPostprocessorValue("InitialResidual");
     //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
   
   // if this is sub app and its the initial_residual wasn't updated 
       // or use his_initial_norm_old
-  if (_picard_max_its==1 && _his_initial_norm == getPostprocessorValueOld("InitialResidual"))
-    _his_initial_norm = 0;
+  //  On the first iteration Old should not match _his_initial if sub-app comes
+  //    second (timestep_end).
+  //if (_picard_max_its==1 && _his_initial_norm == getPostprocessorValueOld("InitialResidual"))
+  if (_picard_max_its==1 && _his_initial_norm == _his_initial_norm_old)
+     _his_initial_norm = 0;
   
   _his_final_norm = getPostprocessorValue("FinalResidual");
-    //TODO: throw a warning (not error) if no FinalResidual is selected in input file
   if (_picard_max_its > 1)
   {    
       // is there a way to get his_final_norm without a postprocessor transfer?
@@ -130,15 +134,16 @@ AutoRBTransient::solveStep(Real input_dt)
     {
       _current_norm = _my_current_norm;  
       //his_initial_norm_old) //EXEC_TIMESTEP_END
-      if (_his_initial_norm == getPostprocessorValueOld("InitialResidual")) 
+      //if (_his_initial_norm == getPostprocessorValueOld("InitialResidual")) 
+      if (_his_initial_norm == _his_initial_norm_old) 
         _his_initial_norm = 0; 
       // set his_initial_norm to 0 so that we can start a new timestep properly
       
       _picard_initial_norm = _current_norm + _his_initial_norm; 
-      _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
+      //_console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (_his_initial_norm == 0)
         _adjust_initial_norm = true;
-      _spectral_radius = _new_tol_mult;
+      _spectral_radius = pow(_new_tol_mult, 0.5);
     }
     else
     {
@@ -174,9 +179,10 @@ AutoRBTransient::solveStep(Real input_dt)
   else // this is the sub-app
   {
       // If this is the first Picard iteration of the timestep
-      if ( _his_initial_norm == getPostprocessorValueOld("InitialResidual") )
+      //   Second condition ensures proper treatment the very first time
+      if ( _his_initial_norm == 0 || _current_norm_old == 0 )
       {
-        _spectral_radius = _new_tol_mult;
+        _spectral_radius = pow(_new_tol_mult, 0.5);
         _current_norm = _his_final_norm + _my_current_norm;
       }
       else
@@ -191,15 +197,14 @@ AutoRBTransient::solveStep(Real input_dt)
   //    or some way to keep the number of PPs low.
   
   if (_his_initial_norm == 0)
-  { _his_initial_norm = _my_current_norm; } // this statement is nearly meaningless,
-  // just ensure it won't revert us back to Solution Interruption.
-  // In other words, assume the other residual is comparable
+    _his_initial_norm = _my_current_norm; 
+  //assume the other residual is comparable to this one
 
   //_new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
   _new_tol = std::min(_his_initial_norm*_spectral_radius*_spectral_radius, 0.95*_my_current_norm);
   // you may want 0.95 to be a parameter for the user to (not) change
   if (_new_tol < _min_abs_tol)
-  { _new_tol = _min_abs_tol;}
+    _new_tol = _min_abs_tol;
   _console << "New Abs_Tol = " << _new_tol << std::endl;
   _problem.es().parameters.set<Real> ("nonlinear solver absolute residual tolerance") = _new_tol;
 
