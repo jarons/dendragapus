@@ -51,7 +51,7 @@ public:
   ResidualBalanceTransient(const InputParameters & parameters);
   virtual ~ResidualBalanceTransient();
 
-  virtual void endStep(Real input_time = -1.0);
+  //virtual void endStep(Real input_time = -1.0);
 
   /**
    * Get the number of Picard iterations performed

@@ -130,7 +130,10 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   // You could evaluate/store his_initial_norm_old  here
   
   _problem.execTransfers(EXEC_TIMESTEP_BEGIN);
-  _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
+  _multiapps_converged = _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
+
+  if (!_multiapps_converged)
+    return;
 
   preSolve();
   _time_stepper->preSolve();
@@ -150,6 +153,13 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   _problem.outputStep(EXEC_TIMESTEP_BEGIN);  */
   
   _problem.execute(EXEC_TIMESTEP_BEGIN);
+  
+  // Perform output for timestep begin
+  _problem.outputStep(EXEC_TIMESTEP_BEGIN);
+
+  // Update warehouse active objects
+  _problem.updateActiveObjects();
+
 
   my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
   his_initial_norm = getPostprocessorValue("InitialResidual");
@@ -179,9 +189,10 @@ ResidualBalanceTransient::solveStep(Real input_dt)
       // set his_initial_norm to 0 so that we can start a new timestep properly
       
       _picard_initial_norm = current_norm + his_initial_norm; 
-      _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (his_initial_norm == 0)
         _adjust_initial_norm = true;
+      else
+        _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
     }
     else
     {
@@ -239,20 +250,6 @@ ResidualBalanceTransient::solveStep(Real input_dt)
       _time_stepper->acceptStep();
 
     _solution_change_norm = _problem.solutionChangeNorm();
-/* Replace this stuff with the following
-    _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::PRE_AUX);
-#if 0
-    // User definable callback
-    if (_estimate_error)
-      estimateTimeError();
-#endif
-
-    _problem.onTimestepEnd();
-
-    _problem.computeAuxiliaryKernels(EXEC_TIMESTEP_END);
-    _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::POST_AUX);
-    _problem.execTransfers(EXEC_TIMESTEP_END);
-    _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1); */
     
       _problem.onTimestepEnd();
       _problem.execute(EXEC_TIMESTEP_END);
@@ -278,45 +275,6 @@ ResidualBalanceTransient::solveStep(Real input_dt)
   _time = _time_old;
 }
 
-
-
-void
-ResidualBalanceTransient::endStep(Real input_time)
-{
-  if (input_time == -1.0)
-    _time = _time_old + _dt;
-  else
-    _time = input_time;
-
-  _picard_converged=false;
-
-  _last_solve_converged = lastSolveConverged();
-
-  if (_last_solve_converged)
-  {
-    // Compute the Error Indicators and Markers
-    _problem.computeIndicatorsAndMarkers();
-
-    // Perform the output of the current time step
-    _problem.outputStep(EXEC_TIMESTEP_END);
-
-    // Output MultiApps if we were doing Picard iterations
-    /* Remove this to match 9/14/15 update to Transient.C
-    if (_picard_max_its > 1)
-    {
-      _problem.advanceMultiApps(EXEC_TIMESTEP_BEGIN);
-      _problem.advanceMultiApps(EXEC_TIMESTEP_END);
-    }
-
-		//Jaron was here. //Is this needed?
-    _problem.advanceMultiApps(EXEC_NONLINEAR);
-     */
-
-    //output
-    if (_time_interval && (_time + _timestep_tolerance >= _next_interval_output_time))
-      _next_interval_output_time += _time_interval_output_interval;
-   }
-}
 
 // Try to over-ride reseting the sub-apps 
 void
@@ -348,9 +306,8 @@ ResidualBalanceTransient::takeStep(Real input_dt)
     // For every iteration other than the first, we need to restore the state of the MultiApps
     if (_picard_it > 0)
     {
-      // This is supposed to regain the previous behavior
-      //_problem.restoreMultiApps(EXEC_TIMESTEP_BEGIN);
-      //_problem.restoreMultiApps(EXEC_TIMESTEP_END);
+      _problem.restoreMultiApps(EXEC_TIMESTEP_BEGIN);
+      _problem.restoreMultiApps(EXEC_TIMESTEP_END);
     }
 
     solveStep(input_dt);
@@ -360,7 +317,8 @@ ResidualBalanceTransient::takeStep(Real input_dt)
     // We could reformulate this check like the other, but I don't think we gain anything.
     if (_picard_max_its > 1)
     {
-      _picard_timestep_end_norm = _problem.computeResidualL2Norm();
+      _picard_timestep_end_norm = _problem.computeResidualL2Norm(); 
+           // +getPostprocessorValue("FinalResidual"); //if timestep_begin apps
 
       _console << "Picard Norm after TIMESTEP_END MultiApps: " << _picard_timestep_end_norm << '\n';
 
@@ -376,7 +334,7 @@ ResidualBalanceTransient::takeStep(Real input_dt)
         return;
       }
     }
-    */
+     */ 
 
     ++_picard_it;
   }
