@@ -249,7 +249,7 @@ ResidualBalanceTransient::solveStep(Real input_dt)
     if (_picard_max_its <= 1 )
       _time_stepper->acceptStep();
 
-    _solution_change_norm = _problem.solutionChangeNorm();
+    _solution_change_norm = _problem.relativeSolutionDifferenceNorm();
     
       _problem.onTimestepEnd();
       _problem.execute(EXEC_TIMESTEP_END);
