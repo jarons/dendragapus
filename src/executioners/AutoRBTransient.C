@@ -59,7 +59,12 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _min_abs_tol(getParam<Real>("nl_abs_tol")),
     _current_norm_old(0)
     //his_initial_norm_old(-1.0)
-{ 
+{
+  //*#*//  These changes set _spectral_radius only for the very beginning.
+    // Afterwards, it is carried over between timesteps.
+    // This did not work well, because solvers don't start out asymptotic
+    //   like they finish.
+  //*#*//_spectral_radius = pow(_new_tol_mult, 0.5);
 }
 
 AutoRBTransient::~AutoRBTransient()
@@ -87,26 +92,23 @@ AutoRBTransient::solveStep(Real input_dt)
   // You could evaluate/store _his_initial_norm_old  here
   
   _problem.execTransfers(EXEC_TIMESTEP_BEGIN);
-  _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
+  _multiapps_converged = _problem.execMultiApps(EXEC_TIMESTEP_BEGIN, _picard_max_its == 1);
+
+  if (!_multiapps_converged)
+    return;
 
   preSolve();
   _time_stepper->preSolve();
 
   _problem.timestepSetup();
- /*  These lines replaced by the following one
-  // Compute Pre-Aux User Objects (Timestep begin)
-  _problem.computeUserObjects(EXEC_TIMESTEP_BEGIN, UserObjectWarehouse::PRE_AUX);
-
-  // Compute TimestepBegin AuxKernels
-  _problem.computeAuxiliaryKernels(EXEC_TIMESTEP_BEGIN);
-
-  // Compute Post-Aux User Objects (Timestep begin)
-  _problem.computeUserObjects(EXEC_TIMESTEP_BEGIN, UserObjectWarehouse::POST_AUX);
-
-  // Perform output for timestep begin
-  _problem.outputStep(EXEC_TIMESTEP_BEGIN);  */
   
   _problem.execute(EXEC_TIMESTEP_BEGIN);
+
+  // Perform output for timestep begin
+  _problem.outputStep(EXEC_TIMESTEP_BEGIN);
+
+  // Update warehouse active objects
+  _problem.updateActiveObjects();
 
   _my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
   _his_initial_norm_old = _his_initial_norm;
@@ -143,13 +145,16 @@ AutoRBTransient::solveStep(Real input_dt)
       //_console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       if (_his_initial_norm == 0)
         _adjust_initial_norm = true;
-      _spectral_radius = pow(_new_tol_mult, 0.5);
+      _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
     }
     else
     {
       _current_norm_old = _current_norm;
       _current_norm = _my_current_norm + _his_final_norm; 
-      _spectral_radius = _current_norm / _current_norm_old;
+      //@^&// These changes smooth out the change in _spectral_radius
+      //@^&//_spectral_radius = _current_norm / _current_norm_old;
+      //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
+      _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
       _console << "Current Picard Norm: " << _current_norm << '\n';
     }
 
@@ -157,7 +162,9 @@ AutoRBTransient::solveStep(Real input_dt)
     {
       _picard_initial_norm = _picard_initial_norm + _his_initial_norm;
       _console << "Adjusted Initial Picard Norm: " << _picard_initial_norm << '\n';
-      _spectral_radius = _current_norm / _picard_initial_norm;
+      //@^&//_spectral_radius = _current_norm / _picard_initial_norm;
+      //@^&//_spectral_radius = 0.5 * (_current_norm / _picard_initial_norm + _spectral_radius);
+      _spectral_radius = pow(_current_norm / _picard_initial_norm * _spectral_radius, 0.5);
     }
 
     Real _relative_drop = _current_norm / _picard_initial_norm;
@@ -182,14 +189,16 @@ AutoRBTransient::solveStep(Real input_dt)
       //   Second condition ensures proper treatment the very first time
       if ( _his_initial_norm == 0 || _current_norm_old == 0 )
       {
-        _spectral_radius = pow(_new_tol_mult, 0.5);
+        _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
         _current_norm = _his_final_norm + _my_current_norm;
       }
       else
       {
         _current_norm_old = _current_norm;
         _current_norm = _his_final_norm + _my_current_norm;
-        _spectral_radius = _current_norm / _current_norm_old;
+        //@^&//_spectral_radius = _current_norm / _current_norm_old;
+        //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
+        _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
       }
   }
   
@@ -220,29 +229,15 @@ AutoRBTransient::solveStep(Real input_dt)
       _time_stepper->acceptStep();
 
     _solution_change_norm = _problem.relativeSolutionDifferenceNorm();
-/* Replace this stuff with the following
-    _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::PRE_AUX);
-#if 0
-    // User definable callback
-    if (_estimate_error)
-      estimateTimeError();
-#endif
-
-    _problem.onTimestepEnd();
-
-    _problem.computeAuxiliaryKernels(EXEC_TIMESTEP_END);
-    _problem.computeUserObjects(EXEC_TIMESTEP_END, UserObjectWarehouse::POST_AUX);
-    _problem.execTransfers(EXEC_TIMESTEP_END);
-    _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1); */
     
-      _problem.onTimestepEnd();
-      _problem.execute(EXEC_TIMESTEP_END);
+    _problem.onTimestepEnd();
+    _problem.execute(EXEC_TIMESTEP_END);
 
-      _problem.execTransfers(EXEC_TIMESTEP_END);
-      _multiapps_converged = _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1);
+    _problem.execTransfers(EXEC_TIMESTEP_END);
+    _multiapps_converged = _problem.execMultiApps(EXEC_TIMESTEP_END, _picard_max_its == 1);
 
-      if (!_multiapps_converged)
-        return;
+    if (!_multiapps_converged)
+      return;
 
   }
   else
