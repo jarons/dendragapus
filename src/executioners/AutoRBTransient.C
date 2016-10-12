@@ -110,7 +110,26 @@ AutoRBTransient::solveStep(Real input_dt)
   // Update warehouse active objects
   _problem.updateActiveObjects();
 
-  _my_current_norm = _problem.computeResidualL2Norm(); // the norm from this app only
+/*
+  if (_picard_it == 0) //first iteration of timestep
+  {
+    Real _residual_normalizer = _problem.computeResidualL2Norm(); //very first residual  
+    _console << "Residual normalizer: " << _residual_normalizer << '\n';
+  // TODO: account for progress towards tolerance:
+  // _effective_tol needs to be recomputed at each timestep
+  // Real _effective_tol = std::max(_min_abs_tol, _residual_normalizer * getParam<Real>("nl_rel_tol"));
+  // Real _residual_normalizer = _problem.computeResidualL2Norm() * _effective_tol;
+
+    _my_current_norm = 1.0; 
+    // equivalent to: _problem.computeResidualL2Norm() / _residual_normalizer;
+  }
+  else  // not first iteration of timestep
+  {
+    // the norm from this app only, divided by the very first residual
+    _my_current_norm = _problem.computeResidualL2Norm() / _residual_normalizer; 
+  }
+*/
+
   _his_initial_norm_old = _his_initial_norm;
   _his_initial_norm = getPostprocessorValue("InitialResidual");
     //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
@@ -121,7 +140,17 @@ AutoRBTransient::solveStep(Real input_dt)
   //    second (timestep_end).
   //if (_picard_max_its==1 && _his_initial_norm == getPostprocessorValueOld("InitialResidual"))
   if (_picard_max_its==1 && _his_initial_norm == _his_initial_norm_old)
-     _his_initial_norm = 0;
+  {
+    _his_initial_norm = 0;
+  }
+  //sub-app and first iteration of timestep:
+  //if (_picard_max_its==1 && _residual_normalizer==0) //
+  if (_picard_max_its==1 && _his_initial_norm_old < _his_initial_norm) //assuming monotone
+    _residual_normalizer = _problem.computeResidualL2Norm();
+
+  _my_current_norm = _problem.computeResidualL2Norm() / _residual_normalizer;
+  
+  _console << "_my_current_norm= " << _my_current_norm << '\n';
   
   _his_final_norm = getPostprocessorValue("FinalResidual");
   if (_picard_max_its > 1)
@@ -209,8 +238,11 @@ AutoRBTransient::solveStep(Real input_dt)
     _his_initial_norm = _my_current_norm; 
   //assume the other residual is comparable to this one
 
+  _console << "_his_initial_norm = " << _his_initial_norm << "  rho=" << _spectral_radius << std::endl;
+
   //_new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
-  _new_tol = std::min(_his_initial_norm*_spectral_radius*_spectral_radius, 0.95*_my_current_norm);
+  _new_tol = std::min(_his_initial_norm * _spectral_radius * _spectral_radius
+      * _residual_normalizer, 0.95 * _my_current_norm * _residual_normalizer);
   // you may want 0.95 to be a parameter for the user to (not) change
   if (_new_tol < _min_abs_tol)
     _new_tol = _min_abs_tol;
@@ -312,11 +344,13 @@ AutoRBTransient::takeStep(Real input_dt)
     {
       _console << "\nBeginning Picard Iteration " << _picard_it << "\n" << std::endl;
 
-      Real _current_norm = _problem.computeResidualL2Norm();
+      
+      //Real _current_norm = _problem.computeResidualL2Norm() / _residual_normalizer;
 
       if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
       {
-        _picard_initial_norm = _current_norm;
+        _residual_normalizer = _problem.computeResidualL2Norm(); //first residual of timestep
+        _picard_initial_norm = 1.0; //_problem.computeResidualL2Norm() / _residual_normalizer;
         _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       }
     }
