@@ -11,6 +11,7 @@
 #include "InitialResidual.h"
 #include "InterruptibleTransientMultiApp.h"
 #include "AutoRBTransient.h"
+#include "QuotientPostprocessor.h"
 
 #include "AccumulatorPostprocessor.h"
 #include "AitkenPredictor.h"
@@ -63,6 +64,7 @@ DendragapusApp::registerObjects(Factory & factory)
   registerExecutioner(InterruptibleTransient);
   registerExecutioner(AutoRBTransient);
 
+  registerPostprocessor(QuotientPostprocessor);
   registerPostprocessor(AccumulatorPostprocessor);
   registerPredictor(AitkenPredictor);
 }

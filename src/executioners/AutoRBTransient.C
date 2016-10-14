@@ -57,7 +57,9 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _new_tol(getPostprocessorValue("InitialResidual")),
     _his_final_norm(getPostprocessorValue("FinalResidual")),
     _min_abs_tol(getParam<Real>("nl_abs_tol")),
-    _current_norm_old(0)
+    _current_norm_old(0),
+    _his_normalizer(1),
+    _last_time(_start_time-1.0)
     //his_initial_norm_old(-1.0)
 {
   //*#*//  These changes set _spectral_radius only for the very beginning.
@@ -65,6 +67,7 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     // This did not work well, because solvers don't start out asymptotic
     //   like they finish.
   //*#*//_spectral_radius = pow(_new_tol_mult, 0.5);
+  //Real _last_time = _start_time - 1.0;
 }
 
 AutoRBTransient::~AutoRBTransient()
@@ -132,6 +135,23 @@ AutoRBTransient::solveStep(Real input_dt)
 
   _his_initial_norm_old = _his_initial_norm;
   _his_initial_norm = getPostprocessorValue("InitialResidual");
+  // for sub-app:
+  //if (_his_initial_norm > _his_initial_norm_old) //may not work across timesteps
+  //if ( _picard_max_its==1 && _his_initial_norm == _his_initial_norm_old ) //sub & tstep_begin
+  // && ( _his_initial_norm == 0 || _current_norm_old == 0 ) )
+  _console << "_time= " << _time << ", _last_time=" << _last_time << '\n';
+  if ( _picard_max_its==1 && _time != _last_time)
+  {
+    //t//_last_time = _time;
+    
+    _his_normalizer = _his_initial_norm;
+    //_console << "_his_initial_norm= " << _his_initial_norm << '\n';
+    _residual_normalizer = _problem.computeResidualL2Norm();
+  }
+  //for master-app:
+  if (_picard_it == 1 && _adjust_initial_norm == true) 
+    _his_normalizer = _his_initial_norm;
+  _his_initial_norm = _his_initial_norm / _his_normalizer;
     //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
   
   // if this is sub app and its the initial_residual wasn't updated 
@@ -143,16 +163,15 @@ AutoRBTransient::solveStep(Real input_dt)
   {
     _his_initial_norm = 0;
   }
-  //sub-app and first iteration of timestep:
-  //if (_picard_max_its==1 && _residual_normalizer==0) //
-  if (_picard_max_its==1 && _his_initial_norm_old < _his_initial_norm) //assuming monotone
+  if (_picard_max_its>1 && _picard_it == 0) //master-app, first iteration
     _residual_normalizer = _problem.computeResidualL2Norm();
 
   _my_current_norm = _problem.computeResidualL2Norm() / _residual_normalizer;
   
   _console << "_my_current_norm= " << _my_current_norm << '\n';
   
-  _his_final_norm = getPostprocessorValue("FinalResidual");
+  _his_final_norm = getPostprocessorValue("FinalResidual") / _his_normalizer;
+
   if (_picard_max_its > 1)
   {    
       // is there a way to get his_final_norm without a postprocessor transfer?
@@ -178,6 +197,12 @@ AutoRBTransient::solveStep(Real input_dt)
     }
     else
     {
+      if (_picard_it == 1 && _adjust_initial_norm == true)
+      {
+        _picard_initial_norm = _picard_initial_norm + _his_initial_norm;
+        _console << "Adjusted Initial Picard Norm: " << _picard_initial_norm << '\n';
+        _current_norm = _picard_initial_norm; //=2 
+      }
       _current_norm_old = _current_norm;
       _current_norm = _my_current_norm + _his_final_norm; 
       //@^&// These changes smooth out the change in _spectral_radius
@@ -185,15 +210,6 @@ AutoRBTransient::solveStep(Real input_dt)
       //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
       _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
       _console << "Current Picard Norm: " << _current_norm << '\n';
-    }
-
-    if (_picard_it == 1 && _adjust_initial_norm == true)
-    {
-      _picard_initial_norm = _picard_initial_norm + _his_initial_norm;
-      _console << "Adjusted Initial Picard Norm: " << _picard_initial_norm << '\n';
-      //@^&//_spectral_radius = _current_norm / _picard_initial_norm;
-      //@^&//_spectral_radius = 0.5 * (_current_norm / _picard_initial_norm + _spectral_radius);
-      _spectral_radius = pow(_current_norm / _picard_initial_norm * _spectral_radius, 0.5);
     }
 
     Real _relative_drop = _current_norm / _picard_initial_norm;
@@ -214,21 +230,24 @@ AutoRBTransient::solveStep(Real input_dt)
   }
   else // this is the sub-app
   {
-      // If this is the first Picard iteration of the timestep
-      //   Second condition ensures proper treatment the very first time
-      if ( _his_initial_norm == 0 || _current_norm_old == 0 )
-      {
-        _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
-        _current_norm = _his_final_norm + _my_current_norm;
-      }
-      else
-      {
-        _current_norm_old = _current_norm;
-        _current_norm = _his_final_norm + _my_current_norm;
-        //@^&//_spectral_radius = _current_norm / _current_norm_old;
-        //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
-        _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
-      }
+    // If this is the first Picard iteration of the timestep
+    //   Second condition ensures proper treatment the very first time
+    //if ( _his_initial_norm == 0 || _current_norm_old == 0 )
+    if (_picard_max_its==1 && _time != _last_time)//t//
+    {
+      _last_time = _time; //t//
+      _current_norm_old = -1.0; // make sure we don't come back here
+      _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
+      _current_norm = _his_final_norm + _my_current_norm;
+    }
+    else
+    {
+      _current_norm_old = _current_norm;
+      _current_norm = _his_final_norm + _my_current_norm;
+      //@^&//_spectral_radius = _current_norm / _current_norm_old;
+      //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
+      _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
+    }
   }
   
   // For multiple sub-apps you'll need an aggregate PP to collect residuals in
@@ -349,6 +368,7 @@ AutoRBTransient::takeStep(Real input_dt)
 
       if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
       {
+         // doesnot work very well, value changes:
         _residual_normalizer = _problem.computeResidualL2Norm(); //first residual of timestep
         _picard_initial_norm = 1.0; //_problem.computeResidualL2Norm() / _residual_normalizer;
         _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
