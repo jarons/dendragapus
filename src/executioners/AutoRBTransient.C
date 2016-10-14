@@ -59,8 +59,10 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _min_abs_tol(getParam<Real>("nl_abs_tol")),
     _current_norm_old(0),
     _his_normalizer(1),
-    _last_time(_start_time-1.0)
-    //his_initial_norm_old(-1.0)
+    _last_time(_start_time-1.0),
+    _lacking_his_norm(false),
+    _his_initial_norm(0),
+    _his_initial_norm_old(0)
 {
   //*#*//  These changes set _spectral_radius only for the very beginning.
     // Afterwards, it is carried over between timesteps.
@@ -139,36 +141,42 @@ AutoRBTransient::solveStep(Real input_dt)
   //if (_his_initial_norm > _his_initial_norm_old) //may not work across timesteps
   //if ( _picard_max_its==1 && _his_initial_norm == _his_initial_norm_old ) //sub & tstep_begin
   // && ( _his_initial_norm == 0 || _current_norm_old == 0 ) )
-  _console << "_time= " << _time << ", _last_time=" << _last_time << '\n';
   if ( _picard_max_its==1 && _time != _last_time)
   {
     //t//_last_time = _time;
-    
+
     _his_normalizer = _his_initial_norm;
+    // if this sub-app is on timestep_begin:
+    if (_his_initial_norm == _his_initial_norm_old || _his_initial_norm == 0)
+    {
+      _his_initial_norm = 0;
+      _his_normalizer = 1.0;
+      _lacking_his_norm = true;
+    }
     //_console << "_his_initial_norm= " << _his_initial_norm << '\n';
     _residual_normalizer = _problem.computeResidualL2Norm();
   }
-  //for master-app:
+  //second pic it for sub app on timestep begin:
+  if (_picard_max_its==1 && _time==_last_time && _lacking_his_norm)
+  {
+    _lacking_his_norm = false;
+    _his_normalizer = _his_initial_norm;
+  }
+  //for master-app with sub-app on timestep_begin:
+  if (_picard_it==0 && _picard_max_its>1)
+  {
+    if (_his_initial_norm!=_his_initial_norm_old && _his_initial_norm!=0)
+      _his_normalizer = _his_initial_norm;
+  }
+  //for master-app with sub-app on timestep_end:
   if (_picard_it == 1 && _adjust_initial_norm == true) 
     _his_normalizer = _his_initial_norm;
   _his_initial_norm = _his_initial_norm / _his_normalizer;
-    //for sub-app@timestep_begin: his_initial_norm should be zero at each timestep
-  
-  // if this is sub app and its the initial_residual wasn't updated 
-      // or use his_initial_norm_old
-  //  On the first iteration Old should not match _his_initial if sub-app comes
-  //    second (timestep_end).
-  //if (_picard_max_its==1 && _his_initial_norm == getPostprocessorValueOld("InitialResidual"))
-  if (_picard_max_its==1 && _his_initial_norm == _his_initial_norm_old)
-  {
-    _his_initial_norm = 0;
-  }
+
   if (_picard_max_its>1 && _picard_it == 0) //master-app, first iteration
     _residual_normalizer = _problem.computeResidualL2Norm();
 
   _my_current_norm = _problem.computeResidualL2Norm() / _residual_normalizer;
-  
-  _console << "_my_current_norm= " << _my_current_norm << '\n';
   
   _his_final_norm = getPostprocessorValue("FinalResidual") / _his_normalizer;
 
@@ -257,7 +265,7 @@ AutoRBTransient::solveStep(Real input_dt)
     _his_initial_norm = _my_current_norm; 
   //assume the other residual is comparable to this one
 
-  _console << "_his_initial_norm = " << _his_initial_norm << "  rho=" << _spectral_radius << std::endl;
+  //_console << "_his_initial_norm = " << _his_initial_norm << "  rho=" << _spectral_radius << std::endl;
 
   //_new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
   _new_tol = std::min(_his_initial_norm * _spectral_radius * _spectral_radius

@@ -81,6 +81,7 @@ private:
   Real _current_norm_old; //this is a bad name
   Real _his_normalizer;
   Real _last_time;
+  bool _lacking_his_norm;
   Real _residual_normalizer;
   Real _spectral_radius; //estimate of the spectral radius
   Real _my_current_norm; // the norm from this app only
