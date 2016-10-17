@@ -162,11 +162,19 @@ AutoRBTransient::solveStep(Real input_dt)
     _lacking_his_norm = false;
     _his_normalizer = _his_initial_norm;
   }
-  //for master-app with sub-app on timestep_begin:
+  //for master-app:
   if (_picard_it==0 && _picard_max_its>1)
   {
+    //with sub-app on timestep_begin:
     if (_his_initial_norm!=_his_initial_norm_old && _his_initial_norm!=0)
       _his_normalizer = _his_initial_norm;
+    else //with sub-app on timestep_end
+    {
+      _his_normalizer = 1;
+      _his_initial_norm = 0;
+      // TODO get rid of adjust_initial_picard_norm--it's always 2. 
+      //   That should simplify this also.
+    }
   }
   //for master-app with sub-app on timestep_end:
   if (_picard_it == 1 && _adjust_initial_norm == true) 
@@ -193,14 +201,15 @@ AutoRBTransient::solveStep(Real input_dt)
       _current_norm = _my_current_norm;  
       //his_initial_norm_old) //EXEC_TIMESTEP_END
       //if (_his_initial_norm == getPostprocessorValueOld("InitialResidual")) 
-      if (_his_initial_norm == _his_initial_norm_old) 
-        _his_initial_norm = 0; 
-      // set his_initial_norm to 0 so that we can start a new timestep properly
-      
+      //if (_his_initial_norm == _his_initial_norm_old) //TODO this condition never works
+      if (_his_initial_norm == 0 || _adjust_initial_norm == true)
+      {
+        _his_initial_norm = 0; //used as a signal elsewhere
+        _adjust_initial_norm = true; //first ever iteration: now we know that sub-app is on timestep_end
+      }
       _picard_initial_norm = _current_norm + _his_initial_norm; 
-      //_console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
-      if (_his_initial_norm == 0)
-        _adjust_initial_norm = true;
+      if (!_adjust_initial_norm)
+        _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
     }
     else
@@ -209,7 +218,8 @@ AutoRBTransient::solveStep(Real input_dt)
       {
         _picard_initial_norm = _picard_initial_norm + _his_initial_norm;
         _console << "Adjusted Initial Picard Norm: " << _picard_initial_norm << '\n';
-        _current_norm = _picard_initial_norm; //=2 
+        //_adjust_initial_norm = false; // this reset is probably unnecessary
+        _current_norm = _picard_initial_norm; //=2, see next line 
       }
       _current_norm_old = _current_norm;
       _current_norm = _my_current_norm + _his_final_norm; 
@@ -222,7 +232,8 @@ AutoRBTransient::solveStep(Real input_dt)
 
     Real _relative_drop = _current_norm / _picard_initial_norm;
 
-    if (_current_norm < _picard_abs_tol || _relative_drop < _picard_rel_tol)
+    //if (_current_norm < _picard_abs_tol || _relative_drop < _picard_rel_tol)
+    if (_relative_drop < _picard_rel_tol || (_my_current_norm * _residual_normalizer + _his_final_norm * _his_normalizer) < _picard_abs_tol)
     {
       _console << "Picard converged!" << std::endl;
 
@@ -378,8 +389,8 @@ AutoRBTransient::takeStep(Real input_dt)
       {
          // doesnot work very well, value changes:
         _residual_normalizer = _problem.computeResidualL2Norm(); //first residual of timestep
-        _picard_initial_norm = 1.0; //_problem.computeResidualL2Norm() / _residual_normalizer;
-        _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
+        _picard_initial_norm = 2.0; //_problem.computeResidualL2Norm() / _residual_normalizer;
+        //_console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       }
     }
 
