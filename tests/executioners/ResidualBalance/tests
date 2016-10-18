@@ -24,4 +24,14 @@
     input = 'autoRB_backward_master.i'
     exodiff = 'autoRB_backward_master_exodus.e autoRB_backward_master_out_sub0.e'
   [../]
+  [./ARB_PI]
+    type = 'Exodiff'
+    input = 'autoRB_pi_master.i'
+    exodiff = 'autoRB_pi_master_exodus.e autoRB_pi_master_out_sub0.e'
+  [../]
+  [./ARB_AN]
+    type = 'Exodiff'
+    input = 'autoRB_an_master.i'
+    exodiff = 'autoRB_an_master_exodus.e autoRB_an_master_out_sub0.e'
+  [../]
 []

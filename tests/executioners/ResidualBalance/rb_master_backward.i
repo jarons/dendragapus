@@ -63,6 +63,13 @@
     type = Receiver
     default = 0
   [../]
+  [./num_nl_its]
+    type = NumNonlinearIterations
+    accumulate_over_step = true
+  [../]
+  [./num_pic_its]
+    type = NumPicardIterations
+  [../]
 []
 
 [Problem]

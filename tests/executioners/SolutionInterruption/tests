@@ -1,4 +1,7 @@
 [Tests]
+  # We do not need this because RB can do SI
+  # If there was coupling, it would not work because they
+  #  disabled transfers on Nonlinear
   [./test]
     type = 'Exodiff'
     input = 'SI_left.i'

@@ -1,4 +1,7 @@
 [Tests]
+  # they disabled transfers on Nonlinear
+  # we don't need this test because RB can do AN
+  # this is a basic test, there are no data transfers
   [./test]
     type = 'Exodiff'
     input = 'AN_left.i'

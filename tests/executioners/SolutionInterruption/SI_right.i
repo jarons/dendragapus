@@ -33,6 +33,13 @@
   [../]
 []
 
+[Postprocessors]
+  [./num_nl_its]
+    type = NumNonlinearIterations
+    accumulate_over_step = true
+  [../]
+[]
+
 [Problem]
   type = FEProblem
   use_legacy_uo_initialization = false

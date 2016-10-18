@@ -77,6 +77,7 @@ protected:
 
   Real _min_abs_tol;
 private:
+  bool _autoRB;
   Real _current_norm; 
   Real _current_norm_old; //this is a bad name
   Real _his_normalizer;

@@ -51,6 +51,10 @@
   [./final_residual]
     type = Residual
   [../]
+  [./num_nl_its]
+    type = NumNonlinearIterations
+    accumulate_over_step = true
+  [../]
 []
 
 [Problem]

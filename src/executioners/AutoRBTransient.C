@@ -45,9 +45,10 @@ InputParameters validParams<AutoRBTransient>()
   params.addParam<Real>("tol_mult",0.1,"0<this<1. (Other residual)*this=(new_abs_tol)"); 
   params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the InitialResidual postprocessor you are trying to get.");
   params.addParam<PostprocessorName>("FinalResidual",0.0, "The name of the Residual postprocessor you are trying to get.");
-  params.addParam<Real>("nl_abs_tol",1e-50,"Set this to the same as nl_abs_tol"); //this overrides other nl_abs_tol
-  
-  params.addParamNamesToGroup("nl_abs_tol", "Solver"); // put it back into the Solver tab
+  params.addParam<Real>("nl_abs_tol",1e-50,"Nonlinear Absolute Tolerance"); //this overrides other nl_abs_tol
+  params.addParam<bool>("adapt_tol_mult",true,"Estimate spectral radius and attempt to reduce over-solving");
+
+  params.addParamNamesToGroup("nl_abs_tol adapt_tol_mult", "Solver"); // put it back into the Solver tab
   return params;
 }
 
@@ -57,6 +58,7 @@ AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     _new_tol(getPostprocessorValue("InitialResidual")),
     _his_final_norm(getPostprocessorValue("FinalResidual")),
     _min_abs_tol(getParam<Real>("nl_abs_tol")),
+    _autoRB(getParam<bool>("adapt_tol_mult")),
     _current_norm_old(0),
     _his_normalizer(1),
     _last_time(_start_time-1.0),
@@ -278,10 +280,14 @@ AutoRBTransient::solveStep(Real input_dt)
 
   //_console << "_his_initial_norm = " << _his_initial_norm << "  rho=" << _spectral_radius << std::endl;
 
-  //_new_tol = std::min(_his_initial_norm*_new_tol_mult, 0.95*_my_current_norm);
-  _new_tol = std::min(_his_initial_norm * _spectral_radius * _spectral_radius
-      * _residual_normalizer, 0.95 * _my_current_norm * _residual_normalizer);
+  if (_autoRB)
+  {
+    _new_tol = std::min(_his_initial_norm * _spectral_radius * _spectral_radius
+        * _residual_normalizer, 0.95 * _my_current_norm * _residual_normalizer);
   // you may want 0.95 to be a parameter for the user to (not) change
+  }
+  else
+    _new_tol = std::min(_his_initial_norm * _residual_normalizer * _new_tol_mult, 0.95 * _my_current_norm * _residual_normalizer);
   if (_new_tol < _min_abs_tol)
     _new_tol = _min_abs_tol;
   _console << "New Abs_Tol = " << _new_tol << std::endl;

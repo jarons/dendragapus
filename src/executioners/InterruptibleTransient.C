@@ -105,7 +105,7 @@ InterruptibleTransient::initialSetup()
     pars.set<Transient *>("_executioner") = this;
     pars.set<Real>("dt") = getParam<Real>("dt");
     pars.set<bool>("reset_dt") = getParam<bool>("reset_dt");
-    _time_stepper = MooseSharedNamespace::static_pointer_cast<TimeStepper>(_app.getFactory().create("ConstantDT", "TimeStepper", pars));
+    _time_stepper = MooseSharedNamespace::static_pointer_cast<TimeStepper>(_app.getFactory().create<TimeStepper>("ConstantDT", "TimeStepper", pars));
   }
 
   _problem.initialSetup();
