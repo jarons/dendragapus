@@ -48,7 +48,7 @@ InputParameters validParams<AutoRBTransient>()
   params.addParam<Real>("nl_abs_tol",1e-50,"Nonlinear Absolute Tolerance"); //this overrides other nl_abs_tol
   params.addParam<bool>("adapt_tol_mult",true,"Estimate spectral radius and attempt to reduce over-solving");
 
-  params.addParamNamesToGroup("nl_abs_tol adapt_tol_mult", "Solver"); // put it back into the Solver tab
+  params.addParamNamesToGroup("nl_abs_tol adapt_tol_mult tol_mult", "Solver"); // put it back into the Solver tab
   return params;
 }
 
