@@ -54,7 +54,7 @@ public:
   /**
    * Initialize executioner
    */
-  virtual void initialSetup();
+  virtual void init();
 
   /**
    * Do whatever is necessary to advance one step.

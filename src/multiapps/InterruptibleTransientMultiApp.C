@@ -529,7 +529,7 @@ InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXM
   app->getOutputWarehouse().setFileNumbers(_app.getOutputFileNumbers());
 
   // Call initialization method of Executioner (Note, this preforms the output of the initial time step, if desired)
-  ex->initialSetup();
+  ex->init();
 
   if (_interpolate_transfers)
   {

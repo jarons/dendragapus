@@ -96,16 +96,26 @@ InterruptibleTransient::~InterruptibleTransient()
 }
 
 void
-InterruptibleTransient::initialSetup()
+InterruptibleTransient::init()
 {
   if (!_time_stepper.get())
   {
     InputParameters pars = _app.getFactory().getValidParams("ConstantDT");
-    pars.set<FEProblem *>("_fe_problem") = &_problem;
+    pars.set<FEProblemBase *>("_fe_problem_base") = &_problem;
     pars.set<Transient *>("_executioner") = this;
-    pars.set<Real>("dt") = getParam<Real>("dt");
+
+    /**
+     * We have a default "dt" set in the Transient parameters but it's possible for users to set other
+     * parameters explicitly that could provide a better calculated "dt". Rather than provide difficult
+     * to understand behavior using the default "dt" in this case, we'll calculate "dt" properly.
+     */
+    if (!_pars.isParamSetByAddParam("end_time") && !_pars.isParamSetByAddParam("num_steps") && _pars.isParamSetByAddParam("dt"))
+      pars.set<Real>("dt") = (getParam<Real>("end_time") - getParam<Real>("start_time")) / static_cast<Real>(getParam<unsigned int>("num_steps"));
+    else
+      pars.set<Real>("dt") = getParam<Real>("dt");
+
     pars.set<bool>("reset_dt") = getParam<bool>("reset_dt");
-    _time_stepper = MooseSharedNamespace::static_pointer_cast<TimeStepper>(_app.getFactory().create<TimeStepper>("ConstantDT", "TimeStepper", pars));
+    _time_stepper = _app.getFactory().create<TimeStepper>("ConstantDT", "TimeStepper", pars);
   }
 
   _problem.initialSetup();
@@ -114,9 +124,7 @@ InterruptibleTransient::initialSetup()
   if (_app.isRestarting())
     _time_old = _time;
 
-  Moose::setup_perf_log.push("Output Initial Condition","Setup");
   _problem.outputStep(EXEC_INITIAL);
-  Moose::setup_perf_log.pop("Output Initial Condition","Setup");
 
   // If this is the first step
   if (_t_step == 0)
