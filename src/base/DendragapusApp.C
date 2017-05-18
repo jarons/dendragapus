@@ -14,7 +14,9 @@
 #include "QuotientPostprocessor.h"
 
 #include "AccumulatorPostprocessor.h"
-#include "AitkenPredictor.h"
+#include "AitkenPredictor.h" //this one didnot really work
+#include "AitkenAux.h"
+#include "PicardRelaxationAux.h"
 
 template<>
 InputParameters validParams<DendragapusApp>()
@@ -66,7 +68,10 @@ DendragapusApp::registerObjects(Factory & factory)
 
   registerPostprocessor(QuotientPostprocessor);
   registerPostprocessor(AccumulatorPostprocessor);
+
   registerPredictor(AitkenPredictor);
+  registerAuxKernel(AitkenAux);
+  registerAuxKernel(PicardRelaxationAux);
 }
 
 // External entry point for dynamic syntax association

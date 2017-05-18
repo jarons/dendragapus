@@ -88,7 +88,6 @@
   [./console]
     # linear_residuals = true
     type = Console
-    perf_log = true
   [../]
   [./Exodus]
     type = Exodus

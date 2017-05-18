@@ -16,6 +16,7 @@
 #include "TimeStepper.h"
 #include "LayeredSideFluxAverage.h"
 #include "AllLocalDofIndicesThread.h"
+#include "AuxiliarySystem.h"
 #include "Output.h"
 #include "Console.h"
 #include "MooseMesh.h"
@@ -80,7 +81,11 @@ InterruptibleTransientMultiApp::InterruptibleTransientMultiApp(const InputParame
   // Transfer interpolation only makes sense for sub-cycling solves
 
   if (_interpolate_transfers && !_sub_cycling)
-    mooseError("MultiApp " << _name << " is set to interpolate_transfers but is not sub_cycling!  That is not valid!"); 
+    mooseError("MultiApp ", name(), " is set to interpolate_transfers but is not sub_cycling!  That is not valid!");
+
+  // Subcycling overrides catch up, we don't want to confuse users by allowing them to set both.
+  if (_sub_cycling && _catch_up)
+    mooseError("MultiApp ", name(), " sub_cycling and catch_up cannot both be set to true simultaneously.");
 }
 
 InterruptibleTransientMultiApp::~InterruptibleTransientMultiApp()
@@ -278,12 +283,12 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
         if (!converged)
         {
-          mooseWarning("While sub_cycling "<<_name<<_first_local_app+i<<" failed to converge!"<<std::endl);
+          mooseWarning("While sub_cycling ",name(), _first_local_app+i," failed to converge!\n");
           _failures++;
 
           if (_failures > _max_failures)
           {  
-            mooseWarning("While sub_cycling " << name() << _first_local_app+i << " REALLY failed!" << std::endl);
+            mooseWarning("While sub_cycling ", name(), _first_local_app+i, " REALLY failed!\n" );
             return false;
           }
         }
@@ -350,7 +355,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
         if (!ex->lastSolveConverged())
         {
-          mooseWarning(_name << _first_local_app+i << " failed to converge!" << std::endl);
+          mooseWarning(name(), _first_local_app+i, " failed to converge!\n");
 
           if (_catch_up)
           {
@@ -388,7 +393,7 @@ InterruptibleTransientMultiApp::solveStep(Real dt, Real target_time, bool auto_a
 
             if (!caught_up)
             {
-              mooseWarning(name() << " Failed to catch up!\n");
+              mooseWarning(name(), " Failed to catch up!\n");
               return false;
             }
 
@@ -513,14 +518,14 @@ InterruptibleTransientMultiApp::resetApp(unsigned int global_app, Real /*time*/)
 void
 InterruptibleTransientMultiApp::setupApp(unsigned int i, Real /*time*/)  // FIXME: Should we be passing time?
 {
-  MooseApp * app = _apps[i];
+  auto & app = _apps[i];
   // Is it really this annoying? Is there a better way?
   // do children also count as the correct class?
   InterruptibleTransient * ex = dynamic_cast<InterruptibleTransient *>(app->getExecutioner());
   // if (!ex)
   //ResidualBalanceTransient * ex = dynamic_cast<ResidualBalanceTransient *>(app->getExecutioner());
   if (!ex)
-    mooseError("MultiApp " << _name << " is not using a Method A Transient Executioner!");
+    mooseError("MultiApp ", name(), " is not using a Method A Transient Executioner!");
 
   // Get the FEProblem for the current MultiApp
   FEProblem & problem = appProblem(_first_local_app + i);

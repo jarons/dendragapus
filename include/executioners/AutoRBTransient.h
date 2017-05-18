@@ -70,6 +70,8 @@ protected:
   virtual void solveStep(Real input_dt = -1.0);
   
   Real _new_tol_mult;
+  Real _gamma;
+  Real _alpha;
   
   PostprocessorValue _new_tol; 
   
@@ -78,6 +80,8 @@ protected:
   Real _min_abs_tol;
 private:
   bool _autoRB;
+  bool _adapt_rtol0;
+  bool _rrt;
   Real _current_norm; 
   Real _current_norm_old; //this is a bad name
   Real _his_normalizer;
@@ -86,9 +90,15 @@ private:
   Real _residual_normalizer;
   Real _spectral_radius; //estimate of the spectral radius
   Real _my_current_norm; // the norm from this app only
+  Real _my_current_norm_old; //bad name. current->initial. Don't need this.
   bool _adjust_initial_norm;
   Real _his_initial_norm;
   Real _his_initial_norm_old;
+  bool _sub_second; // is this the second picard iteration and sub-app
+  Real _his_rel_tol; // need these two for normalization by eff_tol
+  Real _his_abs_tol;
+  Real _my_r00; //these two used for picard relative tolerance
+  Real _his_r00;
 };
 
 #endif //AUTORBTRANSIENT_H

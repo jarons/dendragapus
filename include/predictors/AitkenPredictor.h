@@ -17,6 +17,8 @@
 
 #include "Predictor.h"
 #include "libmesh/numeric_vector.h"
+//#include "MooseVariableBase.h"
+//#include "CoupleableMooseVariableDependencyIntermediateInterface.h"
 
 class AitkenPredictor;
 
@@ -27,6 +29,7 @@ InputParameters validParams<AitkenPredictor>();
  *
  */
 class AitkenPredictor : public Predictor
+//var  public CoupleableMooseVariableDependencyIntermediateInterface
 {
 public:
   AitkenPredictor(const InputParameters & parameters);
@@ -35,20 +38,25 @@ public:
   //virtual int order() { return _order; }
   virtual void apply(NumericVector<Number> & sln);
   virtual NumericVector<Number> & solutionPredictor() { return _solution_predictor; }
-  virtual void historyControl();
+  //virtual void historyControl();
+  bool shouldApply();
 
 protected:
   /*int _order; 
   NumericVector<Number> & _current_old_solution;
   NumericVector<Number> & _older_solution;
   NumericVector<Number> & _oldest_solution;
-  NumericVector<Number> & _tmp_previous_solution;
-  NumericVector<Number> & _tmp_residual_old;
-  NumericVector<Number> & _tmp_third_vector; */
-  int & _t_step_old;
-  Real & _dt_older;
-  Real & _dtstorage;
+  NumericVector<Number> & _tmp_previous_solution;*/
+  NumericVector<Number> & _tmp_vec1;
+  NumericVector<Number> & _tmp_vec2;
+  //int & _t_step_old;
+  //Real & _dt_older;
+  //Real & _dtstorage;
   int _counter;
+
+ /* const VariableValue & _transf_var;
+  const VariableValue & _transf_var_old;
+  const VariableValue & _transf_var_older; */
 };
 
 #endif /* AITKENPREDICTOR_H */

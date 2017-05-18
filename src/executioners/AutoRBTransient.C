@@ -37,41 +37,54 @@
 #include <algorithm> // min(a,b)
 
 #include "InitialResidual.h"
+// #include <string.h>
+// #include <stdio.h>
+// #include <cstdlib>
 
 template<>
 InputParameters validParams<AutoRBTransient>()
 {
   InputParameters params = validParams<Transient>(); 
-  params.addParam<Real>("tol_mult",0.1,"0<this<1. (Other residual)*this=(new_abs_tol)"); 
+  params.addParam<Real>("tol_mult",0.1,"0<this<1. (Other residual)*this=(new_abs_tol)");
+  params.addParam<Real>("gamma",0.5,"Convergence rate multiplier. Less than 1. Use with adapt_tol_mult");
+  params.addParam<Real>("alpha",1.0,"Convergence rate exponent. Between 1 and 2. Use with adapt_tol_mult");
   params.addRequiredParam<PostprocessorName>("InitialResidual", "The name of the InitialResidual postprocessor you are trying to get.");
   params.addParam<PostprocessorName>("FinalResidual",0.0, "The name of the Residual postprocessor you are trying to get.");
   params.addParam<Real>("nl_abs_tol",1e-50,"Nonlinear Absolute Tolerance"); //this overrides other nl_abs_tol
   params.addParam<bool>("adapt_tol_mult",true,"Estimate spectral radius and attempt to reduce over-solving");
+  params.addParam<bool>("adapt_rtol0",true,"Adaptively set initial linear relative tolerance. Use with -snes_ksp_ew");
+  params.addParam<bool>("do_rrt",false,"Maintain this solver's convergence rate with a relaxed relative tolerance"); //does this do regular rrt or only arrt?
+  params.addParam<Real>("his_rel_tol",1e-8,"Other solver's relative tolerance");
+  params.addParam<Real>("his_abs_tol",1e-50,"Other solver's absolute tolerance");
 
-  params.addParamNamesToGroup("nl_abs_tol adapt_tol_mult tol_mult", "Solver"); // put it back into the Solver tab
+  params.addParamNamesToGroup("nl_abs_tol adapt_tol_mult tol_mult his_rel_tol his_abs_tol adapt_rtol0 do_rrt alpha gamma", "Solver"); // put it back into the Solver tab
   return params;
 }
 
 AutoRBTransient::AutoRBTransient(const InputParameters & parameters) :
     Transient(parameters), 
     _new_tol_mult(getParam<Real>("tol_mult")),
+    _gamma(getParam<Real>("gamma")),
+    _alpha(getParam<Real>("alpha")),
     _new_tol(getPostprocessorValue("InitialResidual")),
     _his_final_norm(getPostprocessorValue("FinalResidual")),
     _min_abs_tol(getParam<Real>("nl_abs_tol")),
     _autoRB(getParam<bool>("adapt_tol_mult")),
+    _adapt_rtol0(getParam<bool>("adapt_rtol0")),
+    _rrt(getParam<bool>("do_rrt")),
     _current_norm_old(0),
     _his_normalizer(1),
     _last_time(_start_time-1.0),
     _lacking_his_norm(false),
+    _my_current_norm(0),
     _his_initial_norm(0),
-    _his_initial_norm_old(0)
+    _his_initial_norm_old(0),
+    _sub_second(false),
+    _his_rel_tol(getParam<Real>("his_rel_tol")),
+    _his_abs_tol(getParam<Real>("his_abs_tol")),
+    _my_r00(0),
+    _his_r00(0)
 {
-  //*#*//  These changes set _spectral_radius only for the very beginning.
-    // Afterwards, it is carried over between timesteps.
-    // This did not work well, because solvers don't start out asymptotic
-    //   like they finish.
-  //*#*//_spectral_radius = pow(_new_tol_mult, 0.5);
-  //Real _last_time = _start_time - 1.0;
 }
 
 AutoRBTransient::~AutoRBTransient()
@@ -147,7 +160,10 @@ AutoRBTransient::solveStep(Real input_dt)
   {
     //t//_last_time = _time;
 
-    _his_normalizer = _his_initial_norm;
+    _his_normalizer = _his_initial_norm * std::fmax(_his_abs_tol / _his_initial_norm,
+         _his_rel_tol); //ftol
+    _his_r00 = _his_initial_norm;
+
     // if this sub-app is on timestep_begin:
     if (_his_initial_norm == _his_initial_norm_old || _his_initial_norm == 0)
     {
@@ -157,35 +173,56 @@ AutoRBTransient::solveStep(Real input_dt)
     }
     //_console << "_his_initial_norm= " << _his_initial_norm << '\n';
     _residual_normalizer = _problem.computeResidualL2Norm();
+    _my_r00 = _residual_normalizer;
+    _residual_normalizer = _residual_normalizer * std::fmax(_min_abs_tol
+        / _residual_normalizer, getParam<Real>("nl_rel_tol"));//ftol
   }
   //second pic it for sub app on timestep begin:
   if (_picard_max_its==1 && _time==_last_time && _lacking_his_norm)
   {
     _lacking_his_norm = false;
-    _his_normalizer = _his_initial_norm;
+    _his_normalizer = _his_initial_norm * std::fmax(_his_abs_tol / _his_initial_norm,
+         _his_rel_tol);//ftol
+    _his_r00 = _his_initial_norm;
   }
   //for master-app:
   if (_picard_it==0 && _picard_max_its>1)
   {
     //with sub-app on timestep_begin:
     if (_his_initial_norm!=_his_initial_norm_old && _his_initial_norm!=0)
-      _his_normalizer = _his_initial_norm;
+    {
+      _his_normalizer = _his_initial_norm * std::fmax(_his_abs_tol / _his_initial_norm,
+         _his_rel_tol);//ftol
+      _his_r00 = _his_initial_norm;
+    }
     else //with sub-app on timestep_end
     {
       _his_normalizer = 1;
       _his_initial_norm = 0;
       // TODO get rid of adjust_initial_picard_norm--it's always 2. 
       //   That should simplify this also.
+      //    Not so for ftol.
     }
   }
   //for master-app with sub-app on timestep_end:
-  if (_picard_it == 1 && _adjust_initial_norm == true) 
-    _his_normalizer = _his_initial_norm;
+  if (_picard_it == 1 && _adjust_initial_norm == true)
+  {
+    _his_normalizer = _his_initial_norm * std::fmax(_his_abs_tol / _his_initial_norm,
+         _his_rel_tol);//ftol
+    _his_r00 = _his_initial_norm;
+  }
+
   _his_initial_norm = _his_initial_norm / _his_normalizer;
 
   if (_picard_max_its>1 && _picard_it == 0) //master-app, first iteration
+  {
     _residual_normalizer = _problem.computeResidualL2Norm();
+    _my_r00 = _residual_normalizer;
+    _residual_normalizer = _residual_normalizer * std::fmax(_min_abs_tol /
+            _residual_normalizer, getParam<Real>("nl_rel_tol"));//ftol
+  }
 
+  _my_current_norm_old = _my_current_norm; //minrho
   _my_current_norm = _problem.computeResidualL2Norm() / _residual_normalizer;
   
   _his_final_norm = getPostprocessorValue("FinalResidual") / _his_normalizer;
@@ -208,13 +245,14 @@ AutoRBTransient::solveStep(Real input_dt)
       {
         _his_initial_norm = 0; //used as a signal elsewhere
         _adjust_initial_norm = true; //first ever iteration: now we know that sub-app is on timestep_end
+        _his_final_norm = 1.0;// guard against false convergence on _picard_it==0
       }
       _picard_initial_norm = _current_norm + _his_initial_norm; 
       if (!_adjust_initial_norm)
         _console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
-      _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
+      _spectral_radius = pow(_new_tol_mult, _alpha)/_gamma;// _new_tol_mult * 2.0; //*#*//
     }
-    else
+    else //later picard iterations of master-app
     {
       if (_picard_it == 1 && _adjust_initial_norm == true)
       {
@@ -224,18 +262,38 @@ AutoRBTransient::solveStep(Real input_dt)
         _current_norm = _picard_initial_norm; //=2, see next line 
       }
       _current_norm_old = _current_norm;
-      _current_norm = _my_current_norm + _his_final_norm; 
+      _current_norm = _my_current_norm + _his_final_norm;
+     _spectral_radius = _current_norm / _current_norm_old;
+      //_spectral_radius = std::fmin(_my_current_norm / _my_current_norm_old, 
+         // _his_initial_norm / _his_initial_norm_old); //minrho
+      //_spectral_radius = _my_current_norm / _my_current_norm_old; //MYrho
       //@^&// These changes smooth out the change in _spectral_radius
-      //@^&//_spectral_radius = _current_norm / _current_norm_old;
       //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
-      _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
+      //@^&//_spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
       _console << "Current Picard Norm: " << _current_norm << '\n';
+      if (_picard_it == 1 && _autoRB) 
+      {
+        _spectral_radius = std::fmin(0.999,_my_current_norm / _my_current_norm_old);//myrho1st
+       //carryover:
+        //_new_tol_mult = std::fmin(0.1,std::pow(_my_current_norm / _my_current_norm_old, 0.75)); 
+        //_new_tol_mult = _spectral_radius;//std::fmin(0.1,my_current_norm / _my_current_norm_old / 2.0);
+        //_new_tol_mult = pow(_spectral_radius * _new_tol_mult,0.5);//@^&
+      }
     }
 
-    Real _relative_drop = _current_norm / _picard_initial_norm;
+    //Real _relative_drop = _current_norm / _picard_initial_norm;
+    // have both fallen by a factor of _picard_rel_tol? //TODO: fix these denominators:
+    bool _pic_rel_conv = (_my_current_norm / _my_r00) < _picard_rel_tol;
+    _pic_rel_conv *= (_his_final_norm / _his_r00) < _picard_rel_tol;
+    // have both met their respective conv criteria?
+    bool _both_sub_conv = _my_current_norm < 1.0;
+    _both_sub_conv *= _his_final_norm < 1.0;
+    // are the absolute norms both below _picard_abs_tol?
+    bool _pic_abs_conv = (_my_current_norm * _residual_normalizer + _his_final_norm * _his_normalizer) < _picard_abs_tol;
 
     //if (_current_norm < _picard_abs_tol || _relative_drop < _picard_rel_tol)
-    if (_relative_drop < _picard_rel_tol || (_my_current_norm * _residual_normalizer + _his_final_norm * _his_normalizer) < _picard_abs_tol)
+    //if (_relative_drop < _picard_rel_tol || (_my_current_norm * _residual_normalizer + _his_final_norm * _his_normalizer) < _picard_abs_tol)
+    if(_pic_rel_conv || _pic_abs_conv || _both_sub_conv)
     {
       _console << "Picard converged!" << std::endl;
 
@@ -243,9 +301,8 @@ AutoRBTransient::solveStep(Real input_dt)
       _time_stepper->acceptStep();
 
       // Accumulator Postprocessor goes now, at the actual timestep_end, but
-      //   only if _picard_max_its>1: 
-      //_problem.computeUserObjects(EXEC_CUSTOM, UserObjectWarehouse::POST_AUX);
-      _problem.execute(EXEC_CUSTOM); // new method
+      //   only if _picard_max_its>1:
+      _problem.execute(EXEC_CUSTOM);
       return;
     }
   }
@@ -258,16 +315,30 @@ AutoRBTransient::solveStep(Real input_dt)
     {
       _last_time = _time; //t//
       _current_norm_old = -1.0; // make sure we don't come back here
-      _spectral_radius = pow(_new_tol_mult, 0.5);//*#*//
+      _spectral_radius = pow(_new_tol_mult, _alpha) / _gamma;//_new_tol_mult * 2.0; //*#*//
       _current_norm = _his_final_norm + _my_current_norm;
     }
-    else
+    else // later picard iterations of the sub-app
     {
+      if (_current_norm_old == -1.0)
+        _sub_second = true;
       _current_norm_old = _current_norm;
       _current_norm = _his_final_norm + _my_current_norm;
-      //@^&//_spectral_radius = _current_norm / _current_norm_old;
+      //_spectral_radius = _my_current_norm / _my_current_norm_old;
+      _spectral_radius = _current_norm / _current_norm_old;
+      //_spectral_radius = _my_current_norm / _my_current_norm_old; //MYrho
+      //_spectral_radius = std::fmin(_my_current_norm / _my_current_norm_old, 
+         // _his_initial_norm / _his_initial_norm_old); //minrho
       //@^&//_spectral_radius = 0.5 * (_current_norm / _current_norm_old + _spectral_radius);
-      _spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
+      //@^&//_spectral_radius = pow(_current_norm / _current_norm_old * _spectral_radius, 0.5);
+      if (_sub_second && _autoRB)
+      {
+        //_spectral_radius = std::fmin(0.999,_my_current_norm / _my_current_norm_old);//want this for sub-app on timestep_begin. //myrho1st
+       //carryover:
+        //_new_tol_mult = std::fmin(0.1,_my_current_norm / _my_current_norm_old / 2.0);//_spectral_radius; //pow(_spectral_radius * _new_tol_mult,0.5);
+        //_new_tol_mult = std::fmin(0.1,std::pow(_my_current_norm / _my_current_norm_old, 0.75));
+        _sub_second = false;
+      }
     }
   }
   
@@ -280,19 +351,89 @@ AutoRBTransient::solveStep(Real input_dt)
 
   //_console << "_his_initial_norm = " << _his_initial_norm << "  rho=" << _spectral_radius << std::endl;
 
+  //_new_tol_mult = _spectral_radius; //carryover2
+
   if (_autoRB)
-  {
-    _new_tol = std::min(_his_initial_norm * _spectral_radius * _spectral_radius
+  {   //dont use _his_initial_norm on the first picard iteration:
+    if(_picard_it==0 || _current_norm_old == -1.0)
+    {
+      _new_tol = std::fmin(_my_current_norm * _gamma * pow(_spectral_radius,_alpha)
+         * _residual_normalizer, 0.95 * _my_current_norm * _residual_normalizer);
+    }
+    else
+    {
+      _new_tol = std::fmin(_his_initial_norm * _gamma * pow(_spectral_radius,_alpha)
         * _residual_normalizer, 0.95 * _my_current_norm * _residual_normalizer);
+    }
   // you may want 0.95 to be a parameter for the user to (not) change
+  //*#*// pow(_spectral_radius,2.0)
   }
   else
-    _new_tol = std::min(_his_initial_norm * _residual_normalizer * _new_tol_mult, 0.95 * _my_current_norm * _residual_normalizer);
+  {
+    // // This is the right one:
+    _new_tol = std::fmin(_his_initial_norm * _residual_normalizer
+        * _new_tol_mult, 0.95 * _my_current_norm * _residual_normalizer);
+   // // RRT, FIXME:
+   // _new_tol = std::min(_my_current_norm * _residual_normalizer
+   //     * _new_tol_mult, 0.95 * _my_current_norm * _residual_normalizer);
+  }
+  // satisfy both RB and RRT:
+  if(_rrt && _my_current_norm / (_problem.finalNonlinearResidual() / _residual_normalizer) < 2.0)
+  {
+    if(_autoRB)
+    {
+      /* Real _tmp_num = _my_current_norm/_my_current_norm_old - 
+          _problem.finalNonlinearResidual()/_residual_normalizer/_my_current_norm_old;
+      if(_tmp_num<0){_tmp_num = _my_current_norm/_my_current_norm_old;}
+      _new_tol = std::fmin(_new_tol, _my_current_norm * _residual_normalizer *
+          _gamma * pow(_tmp_num,_alpha) ); //rrtmyDrho */
+      //_new_tol = std::fmin(_new_tol, _my_current_norm * _residual_normalizer *
+         // _gamma * pow(_my_current_norm/_my_current_norm_old,_alpha) );//rrtmyrho
+      _new_tol = std::fmin(_new_tol, _my_current_norm * _residual_normalizer *
+          _gamma * pow(_spectral_radius,_alpha) );//rrt
+      //*#*// pow(_spectral_radius,2.0)
+    }
+    else
+      _new_tol = std::fmin(_new_tol, _my_current_norm*_residual_normalizer*_new_tol_mult);
+  // //_new_tol = std::fmin(_new_tol,_my_current_norm*_residual_normalizer*_my_current_norm/_my_current_norm_old/2.0);
+  }
   if (_new_tol < _min_abs_tol)
     _new_tol = _min_abs_tol;
-  _console << "New Abs_Tol = " << _new_tol << std::endl;
+  _console << "New Abs_Tol = " << _new_tol << 
+    ";  gamma*Convergence_rate^alpha = " << _gamma * pow(_spectral_radius,_alpha) << std::endl;
   _problem.es().parameters.set<Real> ("nonlinear solver absolute residual tolerance") = _new_tol;
+  //_problem.es().parameters.set<Real> ("nonlinear solver relative residual tolerance") = _spectral_radius / 2.0; //RRT
 
+  if(_adapt_rtol0)
+  {
+    std::string _ew_string = "-snes_ksp_ew_rtol0";
+    Real _target_mult = std::fmin(_gamma * pow(_spectral_radius,_alpha)/5.0,_new_tol/_my_current_norm/_residual_normalizer);// /5.0? >1, <10
+  //Real _target_mult = _new_tol / _residual_normalizer / _my_current_norm / 10.0;//not as good
+  /*Real _target_mult; // _problem.es().SNESGetKSP(snes,ksp)
+  KSP _tmp_ksp;
+  SNESGetKSP(_problem.es(), &_tmp_ksp);//.es() is not type SNES
+  //KSPGetTolerances(ksp,_target_mult,0,0,0);//&kctx->rtol_last
+  KSPGetTolerances(&_tmp_ksp,&_target_mult,0,0,0);*/
+    Real _new_rtol = std::fmin(std::fmax(getParam<Real>("l_tol"),_target_mult),0.1);// 0.00001
+    std::string _ew_string2 = std::to_string(_new_rtol);
+    _console << "new rtol0: " << _ew_string2 << std::endl; //l_tol
+
+ //// not using ew just change the linear tolerance:
+ //_problem.es().parameters.set<Real> ("linear solver tolerance") = _new_rtol; 
+
+    Moose::PetscSupport::PetscOptions & _petsc_ops = _problem.getPetscOptions();
+    std::vector<std::string>::iterator _ew_loc;
+    _ew_loc = find(_petsc_ops.inames.begin(), _petsc_ops.inames.end(), _ew_string);
+    if ( _ew_loc == _petsc_ops.inames.end())
+    { // add the rtol0 option if it is not there yet
+      _petsc_ops.inames.push_back(_ew_string);
+      _petsc_ops.values.push_back(_ew_string2);
+    }
+    else //or just edit the existing value:
+      _petsc_ops.values[_ew_loc - _petsc_ops.inames.begin()] = _ew_string2;
+    Moose::PetscSupport::petscSetOptions(_problem); //update Petsc options
+  }
+  
 
   _time_stepper->step();
 
@@ -393,8 +534,11 @@ AutoRBTransient::takeStep(Real input_dt)
 
       if (_picard_it == 0) // First Picard iteration - need to save off the initial nonlinear residual
       {
-         // doesnot work very well, value changes:
+         // TODO remove what's unneeded. doesnot work very well, value changes:
         _residual_normalizer = _problem.computeResidualL2Norm(); //first residual of timestep
+        _my_r00 = _residual_normalizer;
+        _residual_normalizer = _residual_normalizer * std::fmax(_min_abs_tol /
+            _residual_normalizer, getParam<Real>("nl_rel_tol"));//ftol
         _picard_initial_norm = 2.0; //_problem.computeResidualL2Norm() / _residual_normalizer;
         //_console << "Initial Picard Norm: " << _picard_initial_norm << '\n';
       }
